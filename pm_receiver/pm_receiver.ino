@@ -1,7 +1,7 @@
 #include <RH_ASK.h>
 #include <SPI.h> // Not actualy used but needed to compile
 
-RH_ASK driver(2000, 2, 15, 5);;
+RH_ASK driver(2000, 2, 10, 5, false);
 
 void setup()
 {
@@ -12,7 +12,7 @@ void setup()
 
 void loop()
 {
-    uint8_t buf[15];
+    uint8_t buf[12];
     uint8_t buflen = sizeof(buf);
     if (driver.recv(buf, &buflen)) // Non-blocking
     {
