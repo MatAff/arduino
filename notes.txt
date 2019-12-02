@@ -10,4 +10,6 @@ typedef enum { _timer3, _Nbr_16timers } timer16_Sequence_t;
 
 This is because Radiohead uses timer1. It has a flag to use timer2 instead, but the Arduino Leonardo (Pro Micro) doesn't have timer2, just timer1, timer3, and timer4.
 
+If duplicate libraries exist, some will have to be renamed to avoid conflicts
+
 Arduino board can't power servo and receiver, so must use external power. Servo ground must be tied to board ground.
