@@ -1,0 +1,13 @@
+Download Radiohead from {}
+
+Install Radiohead via Sketch > Include Library > Add .ZIP Library...
+
+Modify ServoTimers.h (should be in user/documents/Arduino/libraries/Servo/src/avr/ or programs/Arduino/libraries/Servo/src/avr) to use timer3 instead of timer1:
+
+#elif defined(__AVR_ATmega32U4__)
+#define _useTimer3
+typedef enum { _timer3, _Nbr_16timers } timer16_Sequence_t;
+
+This is because Radiohead uses timer1. It has a flag to use timer2 instead, but the Arduino Leonardo (Pro Micro) doesn't have timer2, just timer1, timer3, and timer4.
+
+Arduino board can't power servo and receiver, so must use external power. Servo ground must be tied to board ground.
