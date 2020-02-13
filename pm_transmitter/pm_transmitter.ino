@@ -5,9 +5,13 @@
 #define RxPin 10
 #define PowerPin 16
 
-#define LeftPin 4
-#define RightPin 3
-#define MiddlePin 2
+#define axisX A0
+#define axisY A1
+#define D3 3
+#define D4 4
+#define D5 5
+#define D6 6
+#define joyclick 2
 
 const unsigned int MAX_INPUT = 50;
 
@@ -15,10 +19,24 @@ RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
 
 void setup()
 {
+  setup_controller();
   Serial.begin(9600);
   Serial.println("Initializing");
   if (!driver.init())
      Serial.println("init failed");
+}
+
+void setup_controller() {
+  pinMode(D3, INPUT);
+  pinMode(D4, INPUT);
+  pinMode(D5, INPUT);
+  pinMode(D6, INPUT);
+  pinMode(joyclick, INPUT);
+  digitalWrite(D3, HIGH);
+  digitalWrite(D4, HIGH);
+  digitalWrite(D5, HIGH);
+  digitalWrite(D6, HIGH);
+  digitalWrite(joyclick, HIGH);
 }
 
 int pos = 0;
@@ -30,19 +48,19 @@ void loop() {
   }
   
   // Test buttons
-  if (digitalRead(LeftPin)) {
+  if (digitalRead(D6)) {
     Serial.println("left");
     transmit_data("1");
   }
-  if (digitalRead(RightPin)) {
+  if (digitalRead(D3)) {
     Serial.println("right");
     transmit_data("2");
   }
-  if (digitalRead(MiddlePin)) {
+  if (digitalRead(D5)) {
     Serial.println("middle");
     transmit_data("3");
   }
-  delay(100);
+//  delay(100);
 }
   
 void processIncomingByte (const byte inByte) {
