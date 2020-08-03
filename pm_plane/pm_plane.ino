@@ -1,3 +1,18 @@
+/* HOW TO RUN
+ * add additional boards managers to preferences
+ * https://raw.githubusercontent.com/sparkfun/Arduino_Boards/master/IDE_Board_Manager/package_sparkfun_index.json
+ * in board manager search for SparkFun and add board manager for pro micro
+ * set board
+ * set processor
+ * set port
+ * upload
+ */
+
+/* DESIGN SPEC
+ * adjust control surfaces to maintain roll target (defaults to 0.0)
+ * when passed signal temporatily override servo pos (will replace with prop throttle when working)
+ */
+
 #include <RH_ASK.h>
 #include <SPI.h> // Not actualy used but needed to compile
 #include <Servo.h>
@@ -11,6 +26,7 @@
 #define PowerPin 16
 #define ServoPinR 9
 #define ServoPinL 8
+#define PropPin 7
 
 // mode
 int mode = 3; // refers to button D3
@@ -20,10 +36,17 @@ Servo servoR;
 Servo servoL;
 float servo_pos_left = 0.0;
 float servo_pos_right = 0.0;
-float servo_last_left = 0.0;
+float servo_last_left = 0.0; // TODO: seems like last should not be set the same as current (as initial position won't get set)
 float servo_last_right = 0.0;
 float servo_min = 10.0;
 float servo_max = 170.0;
+
+// prop globals
+Servo prop;
+float prop_last = 0.0;
+float prop_pos = 0.0;
+float prop_min = 0.0;
+float prop_max = 10.0;
 
 // receiver
 RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
@@ -31,27 +54,20 @@ RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
 // IMU globals
 double roll = 0;
 double pitch = 0; 
-uint16_t BNO055_SAMPLERATE_DELAY_MS = 10; //how often to read data from the board
+uint16_t BNO055_SAMPLERATE_DELAY_MS = 10; // how often to read data from the board
+uint16_t SECOND = 1000; 
+unsigned long tStartOne = micros() - (10 * SECOND);
 
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
-//                                   id, address
+//                                    id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 unsigned long tStart = micros();
 
-
+// limit value to range
 float limit(float value, float min_value=-1.0, float max_value=1.0)
 {
   return min(max(value, min_value), max_value);
 }
-void decision(float roll_target=0.0, float pitch_target=0.0)
-{
-  float max_point = 15.0;
-  float roll_delta = roll_target - roll;
- 
-  servo_pos_left = limit(roll_delta / max_point);
-  servo_pos_right = limit(roll_delta / max_point) * -1.0;
-}
-
 
 float unit_to_servo(float xy)
 {
@@ -67,7 +83,7 @@ float set_servo(Servo servo, float pos, bool invert=false, bool wordy=false)
   }
   
   if (wordy) {
-    Serial.print("Setting servo position: ");
+    Serial.print("Setting position: ");
     Serial.println(pos);
   }
 
@@ -77,10 +93,103 @@ float set_servo(Servo servo, float pos, bool invert=false, bool wordy=false)
   return pos;
 }
 
+// set prop using wrapper around set_servo
+float set_prop(Servo servo, float pos, bool invert=false, bool wordy=false) 
+{
+  return set_servo(servo, pos, false, wordy);
+}
+
+void input_roll_pitch(bool wordy=false) 
+{
+  // set global roll and pitch 
+  sensors_event_t orientationData, linearAccelData;
+
+  //  triggered after delay
+  if ((micros() - tStart) > (BNO055_SAMPLERATE_DELAY_MS * 1000))
+  {
+    bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+    tStart = micros();
+    roll = roll_standardize(orientationData.orientation.z);
+    pitch = pitch_standardize(orientationData.orientation.y);
+
+    if (wordy) {
+      printEvent(&orientationData);
+      Serial.print("Roll: ");
+      Serial.println(roll);
+      Serial.print("Pitch: ");
+      Serial.println(pitch);
+    }
+  }
+}
+
+int input_receiver() 
+{
+  // return int of message received or zero
+  uint8_t buf[50];
+  uint8_t buflen = sizeof(buf);
+  memset(buf, 0, buflen);
+  int sent_code = 0;
+
+//  Serial.println("Checking receiver");
+
+  if (driver.recv(buf, &buflen)) {
+    Serial.print("Message: ");
+    Serial.println((char*)buf);
+    sent_code = String((char*)buf).toInt();  // update sent code
+    
+  }
+
+  return sent_code;
+
+}
+
+void control_roll(float roll_target=0.0, float pitch_target=0.0)
+{
+  float max_point = 15.0;
+  float roll_delta = roll_target - roll;
+ 
+  servo_pos_left = limit(roll_delta / max_point);
+  servo_pos_right = limit(roll_delta / max_point) * -1.0;
+}
+
+bool control_override(int sent_code)
+{
+
+  // receiver
+  if (sent_code==1) {
+    tStartOne = micros();
+    Serial.println("setting");
+  }
+
+  // override pos based on button press
+  if (micros() < (tStartOne + SECOND)) {
+    servo_pos_right = servo_max;
+    Serial.println("yeah");
+    return true;
+  }
+
+  return false;
+}
+
+void act_servo_prop()
+{
+  // set servos to positions
+  if (servo_last_left != servo_pos_left) {
+    servo_last_left = set_servo(servoL, servo_pos_left, true, false);
+  }
+  if (servo_last_right != servo_pos_right) {
+    servo_last_right = set_servo(servoR, servo_pos_right, false, false);
+  }
+
+  // set prop
+  if (prop_last != prop_pos) {
+    prop_last = set_prop(prop, prop_pos, false, false);
+  }
+
+}
 
 
-
-
+// SETUP PHASE
 void setup()
 {
   Serial.begin(9600);  // Debugging only
@@ -91,6 +200,10 @@ void setup()
   servoL.attach(ServoPinL);
   set_servo(servoL, servo_pos_left);
   set_servo(servoR, servo_pos_right);
+
+  // prop
+  prop.attach(PropPin);
+  set_prop(prop, prop_pos);
 
   // receiver
   if (!driver.init()) {
@@ -105,49 +218,33 @@ void setup()
   }
 
   delay(1000);
+
+  Serial.println("setup complete");
 }
 
 
+// RUN PHASE
 void loop() {
 
-  // imu
-  sensors_event_t orientationData , linearAccelData;
+  /* inputs */
 
-  // imu - triggered after delay
-  if ((micros() - tStart) > (BNO055_SAMPLERATE_DELAY_MS * 1000))
-  {
-    bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
-    tStart = micros();
-    roll = roll_standardize(orientationData.orientation.z);
-    pitch = pitch_standardize(orientationData.orientation.y);
-//    printEvent(&orientationData);
-//    Serial.print("Roll: ");
-//    Serial.println(roll);
-//    Serial.print("Pitch: ");
-//    Serial.println(pitch);
-  }
+  input_roll_pitch();
+  int sent_code = input_receiver();
 
-  // receiver
-  uint8_t buf[50];
-  uint8_t buflen = sizeof(buf);
-  memset(buf, 0, buflen);
-  if (driver.recv(buf, &buflen)) {
-    Serial.print("Message: ");
-    Serial.println((char*)buf);
-  }
+  /* controls */
 
   // decision logic
   if (mode==3) {
-    decision();
+
+    control_roll();
+
+    //control_override(sent_code);
+
   }
 
-  // set servos to positions
-  if (servo_last_left != servo_pos_left) {
-    servo_last_left = set_servo(servoL, servo_pos_left, true, true);
-  }
-  if (servo_last_right != servo_pos_right) {
-    servo_last_right = set_servo(servoR, servo_pos_right, false, true);
-  }
+  /* act */
+
+  act_servo_prop();
 
 }
 
@@ -186,8 +283,6 @@ float stick_offset_x(float x)
   return max(x - 0.02, 0.0);
 }
 
-
-
 void printEvent(sensors_event_t* event) {
   Serial.println();
   Serial.print(event->type);
@@ -220,6 +315,8 @@ void printEvent(sensors_event_t* event) {
   Serial.print(" | z= ");
   Serial.println(z);
 }
+
+// OLD STUFF BELOW // OLD STUFF BELOW // OLD STUFF BELOW //
 
 //double DEG_2_RAD = 0.01745329251; //trig functions require radians, BNO055 outputs degrees
 

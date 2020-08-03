@@ -20,23 +20,23 @@ int RXLED = 17;  // The RX LED has a defined Arduino pin
 
 void setup()
 {
- pinMode(RXLED, OUTPUT);  // Set RX LED as an output
- // TX LED is set as an output behind the scenes
+  pinMode(RXLED, OUTPUT);  // Set RX LED as an output
+  // TX LED is set as an output behind the scenes
 
- Serial.begin(9600); //This pipes to the serial monitor
- Serial1.begin(9600); //This is the UART, pipes to sensors attached to board
+  Serial.begin(9600); //This pipes to the serial monitor
+  Serial1.begin(9600); //This is the UART, pipes to sensors attached to board
 }
 
 void loop()
 {
- Serial.println("Hello world");  // Print "Hello World" to the Serial Monitor
- Serial1.println("Hello!");  // Print "Hello!" over hardware UART
+  Serial.println("Hello world");  // Print "Hello World" to the Serial Monitor
+  Serial1.println("Hello!");  // Print "Hello!" over hardware UART
 
- digitalWrite(RXLED, LOW);   // set the RX LED ON
- TXLED0; //TX LED is not tied to a normally controlled pin so a macro is needed, turn LED OFF
- delay(1000);              // wait for a second
+  digitalWrite(RXLED, LOW);   // set the RX LED ON
+  TXLED0; //TX LED is not tied to a normally controlled pin so a macro is needed, turn LED OFF
+  delay(1000);              // wait for a second
 
- digitalWrite(RXLED, HIGH);    // set the RX LED OFF
- TXLED1; //TX LED macro to turn LED ON
- delay(1000);              // wait for a second
+  digitalWrite(RXLED, HIGH);    // set the RX LED OFF
+  TXLED1; //TX LED macro to turn LED ON
+  delay(1000);              // wait for a second
 }
