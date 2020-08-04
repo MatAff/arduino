@@ -46,7 +46,7 @@ Servo prop;
 float prop_last = 0.0;
 float prop_pos = 0.0;
 float prop_min = 0.0;
-float prop_max = 10.0;
+float prop_max = 50.0;
 
 // receiver
 RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
@@ -54,9 +54,10 @@ RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
 // IMU globals
 double roll = 0;
 double pitch = 0; 
-uint16_t BNO055_SAMPLERATE_DELAY_MS = 10; // how often to read data from the board
-uint16_t SECOND = 1000; 
-unsigned long tStartOne = micros() - (10 * SECOND);
+uint16_t BNO055_SAMPLERATE_DELAY_MS = 10;  // how often to read data from the board
+unsigned long SECOND = 1000000; 
+unsigned long tEnd = micros();  // end time initialize as one second ago
+int prop_duration_seconds = 3;
 
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                    id, address
@@ -152,20 +153,23 @@ void control_roll(float roll_target=0.0, float pitch_target=0.0)
   servo_pos_right = limit(roll_delta / max_point) * -1.0;
 }
 
-bool control_override(int sent_code)
+bool control_power_prop(int sent_code)
 {
 
   // receiver
   if (sent_code==1) {
-    tStartOne = micros();
+    tEnd = micros() + (prop_duration_seconds * SECOND); 
     Serial.println("setting");
+    Serial.println(tEnd);
   }
 
   // override pos based on button press
-  if (micros() < (tStartOne + SECOND)) {
-    servo_pos_right = servo_max;
-    Serial.println("yeah");
+  if (micros() < tEnd) {
+    Serial.println("POWERED!");
+    prop_pos = prop_max;
     return true;
+  } else {
+    prop_pos = prop_min;
   }
 
   return false;
@@ -173,6 +177,7 @@ bool control_override(int sent_code)
 
 void act_servo_prop()
 {
+  
   // set servos to positions
   if (servo_last_left != servo_pos_left) {
     servo_last_left = set_servo(servoL, servo_pos_left, true, false);
@@ -238,7 +243,7 @@ void loop() {
 
     control_roll();
 
-    //control_override(sent_code);
+    control_power_prop(sent_code);
 
   }
 
