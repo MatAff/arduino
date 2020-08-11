@@ -18,7 +18,7 @@
 
 #include <Wire.h>
 
-#define PropPin 9
+#define PropPin 7
 
 // prop globals
 Servo prop;
@@ -68,11 +68,11 @@ void setup()
 
   // middle
   Serial.println("Middle");
-  set_prop(prop, 1300, 1300, 1000);
+  set_prop(prop, 1200, 1500, 2000);
 
   // low - indefinite
   Serial.println("Low");
-  set_prop(prop, 1000, 1000, 999999999);
+  set_prop(prop, 1500, 500, 2000);
 
 }
 
