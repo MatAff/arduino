@@ -68,12 +68,11 @@ void setup()
 
   // middle
   Serial.println("Middle");
-  set_prop(prop, 1500, 1500, 2000);
+  set_prop(prop, 1300, 1300, 1000);
 
   // low - indefinite
   Serial.println("Low");
-  set_prop(prop, 1200, 1200, 999999999);
-  delay(4000);
+  set_prop(prop, 1000, 1000, 999999999);
 
 }
 
