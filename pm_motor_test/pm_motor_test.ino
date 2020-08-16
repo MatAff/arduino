@@ -67,11 +67,11 @@ void setup()
   set_prop(prop, 1200, 1200, 2000);
 
   // middle
-  Serial.println("Middle");
+  Serial.println("ramp up");
   set_prop(prop, 1200, 1500, 2000);
 
   // low - indefinite
-  Serial.println("Low");
+  Serial.println("ramp down");
   set_prop(prop, 1500, 500, 2000);
 
 }

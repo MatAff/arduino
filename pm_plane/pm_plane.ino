@@ -10,7 +10,7 @@
 
 /* DESIGN SPEC
  * adjust control surfaces to maintain roll target (defaults to 0.0)
- * when passed signal temporatily override servo pos (will replace with prop throttle when working)
+ * when passed signal temporatily power esc)
  */
 
 #include <RH_ASK.h>
@@ -26,28 +26,32 @@
 #define PowerPin 16
 #define ServoPinR 9
 #define ServoPinL 8
-#define PropPin 7
+#define EscPin 7 // TODO: verify this can be used
 
 // mode
 int mode = 3; // refers to button D3
 
-// servo globals - includes prop
+// servo globals
 Servo servoR;
 Servo servoL;
-Servo prop;
-float servo_min = 10.0;
-float servo_max = 170.0;
-float servo_pos_left = 0.0;
-float servo_pos_right = 0.0;
-float servo_last_left = 0.0; // TODO: seems like last should not be set the same as current (as initial position won't get set)
-float servo_last_right = 0.0;
-float prop_last = 0.0;
-float prop_pos = 0.0;
+float servoMin = 10.0;
+float servoMax = 170.0;
+float servoPosLeft = 0.0;
+float servoPosRight = 0.0;
+float servoLastLeft = -1.0;
+float servoLastRight = -1.0;
+
+// esc globals
+Servo esc;
+float escMin = 1200.0;
+float escMax = 1800.0;
+float escPos = 0.0;
+float escLast = 0.0;
 
 // prop control
 unsigned long SECOND = 1000000; 
-unsigned long tEnd = micros() - SECOND;  // end time initialize as one second ago
-float prop_duration_seconds = 1.0;
+unsigned long escEndTime = micros() - SECOND;  // initialize esc end time as one second ago
+float escDurSecs = 1.0;
 
 // receiver
 RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
@@ -59,30 +63,35 @@ uint16_t BNO055_SAMPLERATE_DELAY_MS = 10;  // how often to read data from the bo
 
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                    id, address
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
-unsigned long tStart = micros();
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);  // TODO: unused, determine relevance
+unsigned long startTime = micros();
 
-float unit_to_servo(float xy, float servo_min, float servo_max)
+
+float scale_unit(float val, float minVal, float maxVal, bool limit, bool invert) 
 {
-  /* convert range [-1, 1] to [servo_min, servo_max] */
-  return (xy + 1.0) / 2.0 * (servo_max - servo_min) + servo_min;
+  /* scale val from unit range [-1, 1] to [minVal, maxVal] */
+  
+  val = (val + 1.0) / 2.0 * (maxVal - minVal) + minVal;
+
+  if (limit) { 
+    val = min(max(val, minVal), maxVal);
+  }
+  
+  if (invert) {
+    val = maxVal - val + minVal;
+  }
+
+  return val; 
 }
 
-float limit(float value, float min_value, float max_value)
+float limit(float val, float minVal, float maxVal)
 {
-  return min(max(value, min_value), max_value);
+  return min(max(val, minVal), maxVal);
 }
 
-float invert(float value, float min_value, float max_value)
+float set_servo(Servo servo, float pos, bool invert=false, bool wordy=false) 
 {
-  return servo_max - value + servo_min;
-}
-
-float set_servo(Servo servo, float pos, bool do_invert=false, bool wordy=false) 
-{
-  pos = unit_to_servo(pos, servo_min, servo_max);
-  pos = limit(pos, servo_min, servo_max);
-  if (do_invert) { invert(pos, servo_min, servo_max); }
+  pos = scale_unit(pos, servoMin, servoMax, true, invert);
   
   if (wordy) {
     Serial.print("Setting position: ");
@@ -90,11 +99,15 @@ float set_servo(Servo servo, float pos, bool do_invert=false, bool wordy=false)
   }
 
   servo.write(pos);
-  delay(15);
+  
+  delay(15);  // TODO: move delay to overall loop
   
   return pos;
 }
 
+float set_esc(Servo esc, float pos) {
+  // TODO: write this
+}
 
 float roll_standardize(float roll)
 {
@@ -112,11 +125,11 @@ void input_roll_pitch(bool wordy=false)
   sensors_event_t orientationData, linearAccelData;
 
   //  triggered after delay
-  if ((micros() - tStart) > (BNO055_SAMPLERATE_DELAY_MS * 1000))
-  {
-    tStart = micros(); // reset timer
+  if ((micros() - startTime) > (BNO055_SAMPLERATE_DELAY_MS * 1000)) {
+    
+    startTime = micros(); // reset timer
 
-    // get orientation
+    // get orientation and standardize
     bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
     roll = roll_standardize(orientationData.orientation.z);
     pitch = pitch_standardize(orientationData.orientation.y);
@@ -137,72 +150,68 @@ int input_receiver()
   uint8_t buf[50];
   uint8_t buflen = sizeof(buf);
   memset(buf, 0, buflen);
-  int sent_code = 0;
-
-//  Serial.println("Checking receiver");
+  int sentCode = 0;
 
   if (driver.recv(buf, &buflen)) {
+    sentCode = String((char*)buf).toInt();  // update sent code    
     Serial.print("Message: ");
-    Serial.println((char*)buf);
-    sent_code = String((char*)buf).toInt();  // update sent code
-    
+    Serial.println(sentCode);
   }
 
-  return sent_code;
+  return sentCode;
 
 }
 
-void control_roll(float roll_target=0.0, float pitch_target=0.0)
+void control_roll(float rollTarget=0.0, float pitchTarget=0.0)
 {
-  float max_point = 15.0;
-  float roll_delta = roll_target - roll;
- 
-  servo_pos_left = limit(roll_delta / max_point, -1.0, 1.0);
-  servo_pos_right = limit(roll_delta / max_point, -1.0, 1.0) * -1.0;
+  float rollMax = 15.0;
+  float rollDelta = rollTarget - roll;
+
+  // updates globals
+  servoPosLeft = limit(rollDelta / rollMax, -1.0, 1.0);
+  servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0) * -1.0;
 }
 
-bool control_power_prop(int sent_code)
+bool control_prop(int sentCode)
 {
 
-  // receiver
-  if (sent_code==1) {
-    tEnd = micros() + (prop_duration_seconds * SECOND); 
+  // update end esc end time
+  if (sentCode==1) {
+    escEndTime = micros() + (escDurSecs * SECOND); 
     Serial.println("setting");
-    Serial.println(tEnd);
+    Serial.println(escEndTime);
   }
 
-  // override pos based on button press
-  if (micros() < tEnd) {
-    Serial.println("POWERED!");
-    prop_pos = 0.5;
+  // set esc target - update global
+  if (micros() < escEndTime) {
+    escPos = 0.5;
     return true;
   } else {
-    //Serial.println("IDLE!");
-    prop_pos = 0.0;
+    escPos = 0.0;
     return false;
   }
 
 }
 
-void act_servo_prop()
+void act_servos()
 {
   
-  // set servos to positions
-  if (servo_last_left != servo_pos_left) {
-    servo_last_left = set_servo(servoL, servo_pos_left, true, false);
+  if (servoLastLeft != servoPosLeft) {
+    servoLastLeft = set_servo(servoL, servoPosLeft, true, false);
   }
   
-  if (servo_last_right != servo_pos_right) {
-    servo_last_right = set_servo(servoR, servo_pos_right, false, false);
-  }
-
-  // set prop
-  if (prop_last != prop_pos) {
-    prop_last = set_servo(prop, prop_pos, false, false);
+  if (servoLastRight != servoPosRight) {
+    servoLastRight = set_servo(servoR, servoPosRight, false, false);
   }
 
 }
 
+void act_esc() {
+  if (escLast != escPos) {
+    // TODO: review this functionality
+    escLast = set_servo(esc, escPos, false, false);
+  }
+}
 
 // SETUP PHASE
 void setup()
@@ -213,10 +222,12 @@ void setup()
   // servos
   servoR.attach(ServoPinR);
   servoL.attach(ServoPinL);
-  prop.attach(PropPin);
-  set_servo(servoL, servo_pos_left);
-  set_servo(servoR, servo_pos_right);
-  set_servo(prop, prop_pos);
+  set_servo(servoL, servoPosLeft);
+  set_servo(servoR, servoPosRight);
+  
+  // esc
+  esc.attach(EscPin);
+  set_servo(esc, escPos);
 
   // receiver
   if (!driver.init()) {
@@ -230,6 +241,8 @@ void setup()
     while (1);
   }
 
+  // TODO: add esc calibration sequence here
+
   delay(1000);
   Serial.println("setup complete");
 }
@@ -240,23 +253,32 @@ void loop() {
 
   /*** input section ***/
 
+  // imu
   input_roll_pitch();
-  int sent_code = input_receiver();
+
+  // receiver
+  int sentCode = input_receiver();
 
   /*** control section ***/
 
   // decision logic
   if (mode==3) {
 
+    // roll
     control_roll();
 
-    control_power_prop(sent_code);
+    // prop
+    control_prop(sentCode);
 
   }
 
   /*** act section ***/
 
-  act_servo_prop();
+  // servos
+  act_servos();
+
+  // esc
+  act_esc();
 
 }
 
@@ -350,3 +372,15 @@ void printEvent(sensors_event_t* event) {
       servo_position = servo_positions[2];
       Serial.println("left");
     }*/
+
+ //float unit_to_servo(float xy, float servoMin, float servoMax)
+//{
+//  /* convert range [-1, 1] to [servoMin, servoMax] */
+//  return (xy + 1.0) / 2.0 * (servoMax - servoMin) + servoMin;
+//}
+//
+//
+//float invert(float value, float min_value, float max_value)
+//{
+//  return max_value - value + min_value;
+//}
