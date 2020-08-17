@@ -18,7 +18,7 @@
 
 #include <Wire.h>
 
-#define PropPin 7
+#define PropPin 9
 
 // prop globals
 Servo prop;

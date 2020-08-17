@@ -13,6 +13,14 @@
  * when passed signal temporatily power esc)
  */
 
+ /* TODO
+  * update code to adhere to style guide
+  * include scale a global nature into variable names
+  * update scale function to rescale from any scale
+  * write tests for functions
+  * investigate options for strucs/classes
+  */
+
 #include <RH_ASK.h>
 #include <SPI.h> // Not actualy used but needed to compile
 #include <Servo.h>
@@ -24,9 +32,9 @@
 #define TxPin 10
 #define RxPin 10
 #define PowerPin 16
-#define ServoPinR 9
+#define ServoPinR 6
 #define ServoPinL 8
-#define EscPin 7 // TODO: verify this can be used
+#define EscPin 9 
 
 // mode
 int mode = 3; // refers to button D3
@@ -45,13 +53,14 @@ float servoLastRight = -1.0;
 Servo esc;
 float escMin = 1200.0;
 float escMax = 1800.0;
-float escPos = 0.0;
-float escLast = 0.0;
+float escPos = -1.0;
+float escLast = -1.0;
+int escStepSize = 0.01; // in unit
 
 // prop control
 unsigned long SECOND = 1000000; 
-unsigned long escEndTime = micros() - SECOND;  // initialize esc end time as one second ago
-float escDurSecs = 1.0;
+unsigned long escEndTime = micros() - (0 * SECOND);  // initialize esc end time as one second ago
+float escDurSecs = 3.0;
 
 // receiver
 RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
@@ -65,7 +74,6 @@ uint16_t BNO055_SAMPLERATE_DELAY_MS = 10;  // how often to read data from the bo
 //                                    id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);  // TODO: unused, determine relevance
 unsigned long startTime = micros();
-
 
 float scale_unit(float val, float minVal, float maxVal, bool limit, bool invert) 
 {
@@ -91,22 +99,36 @@ float limit(float val, float minVal, float maxVal)
 
 float set_servo(Servo servo, float pos, bool invert=false, bool wordy=false) 
 {
-  pos = scale_unit(pos, servoMin, servoMax, true, invert);
+  float posScaled = scale_unit(pos, servoMin, servoMax, true, invert);
   
   if (wordy) {
-    Serial.print("Setting position: ");
-    Serial.println(pos);
+    Serial.print("Setting servo position: ");
+    Serial.println(posScaled);
   }
 
-  servo.write(pos);
+  servo.write(posScaled);
   
   delay(15);  // TODO: move delay to overall loop
   
   return pos;
 }
 
-float set_esc(Servo esc, float pos) {
-  // TODO: write this
+// DEB - scales, writes and returns
+float set_esc(Servo esc, float pos, bool invert=false, bool wordy=false) {
+
+  // scale
+  float posScaled = scale_unit(pos, escMin, escMax, true, false);
+
+  if (wordy) {
+    Serial.print("Setting esc position: ");
+    Serial.println(posScaled);
+  }
+
+  esc.writeMicroseconds(posScaled);
+
+  delay(15);
+
+  return pos;
 }
 
 float roll_standardize(float roll)
@@ -172,6 +194,7 @@ void control_roll(float rollTarget=0.0, float pitchTarget=0.0)
   servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0) * -1.0;
 }
 
+// DEB - sets escPos
 bool control_prop(int sentCode)
 {
 
@@ -184,10 +207,16 @@ bool control_prop(int sentCode)
 
   // set esc target - update global
   if (micros() < escEndTime) {
-    escPos = 0.5;
+
+    Serial.print(micros() / SECOND);
+    Serial.print(" - ");
+    Serial.print(escEndTime / SECOND);
+    Serial.print(" - ");
+    Serial.println("Going!");
+    escPos = -0.5;
     return true;
   } else {
-    escPos = 0.0;
+    escPos = -1.0; // TODO: Update code so stop can be 0.0
     return false;
   }
 
@@ -206,10 +235,24 @@ void act_servos()
 
 }
 
+// DEB - calculates escPosLimit and passes to set_esc
 void act_esc() {
+
+//  Serial.print("escLast: ");
+//  Serial.println(escPos);
+//  Serial.print("escLast: ");
+//  Serial.println(escLast);
+  
   if (escLast != escPos) {
-    // TODO: review this functionality
-    escLast = set_servo(esc, escPos, false, false);
+    
+    // limit to steps size
+//    float escPosLimit = escLast + limit(escPos - escLast, escStepSize, -escStepSize);
+    float escPosLimit = escPos;
+
+    Serial.print("escPosLimit: ");
+    Serial.println(escPosLimit);
+
+    escLast = set_esc(esc, escPosLimit, false, true);
   }
 }
 
@@ -240,10 +283,20 @@ void setup()
     Serial.print("No BNO055 detected");
     while (1);
   }
-
-  // TODO: add esc calibration sequence here
-
   delay(1000);
+  
+  // esc
+  Serial.println("esc - low");
+  esc.writeMicroseconds(escMin);  // TODO: find out if a signal has to be sent continuously
+  delay(2000);
+  Serial.println("esc - high");
+  esc.writeMicroseconds(escMax);
+  delay(2000);  
+  Serial.println("esc - low");
+  esc.writeMicroseconds(escMin);
+  delay(2000);
+
+  // finalize
   Serial.println("setup complete");
 }
 
@@ -251,7 +304,7 @@ void setup()
 // RUN PHASE
 void loop() {
 
-  /*** input section ***/
+  /* input section */
 
   // imu
   input_roll_pitch();
@@ -259,7 +312,7 @@ void loop() {
   // receiver
   int sentCode = input_receiver();
 
-  /*** control section ***/
+  /* control section */
 
   // decision logic
   if (mode==3) {
@@ -272,18 +325,18 @@ void loop() {
 
   }
 
-  /*** act section ***/
+  /* act section */
 
   // servos
   act_servos();
+
+//  Serial.print("esc pos: ");
+//  Serial.println(escPos);
 
   // esc
   act_esc();
 
 }
-
-
-
 
 // translate x or y stick values to -1 to 1 range
 float stick_trans(float xy)
