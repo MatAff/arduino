@@ -22,7 +22,7 @@
   */
 
 #include <RH_ASK.h>
-#include <SPI.h> // Not actualy used but needed to compile
+#include <SPI.h> // Not actually used but needed to compile
 #include <Servo.h>
 
 #include <Adafruit_Sensor.h>
@@ -60,7 +60,8 @@ int escStepSize = 0.01; // in unit
 // prop control
 unsigned long SECOND = 1000000; 
 unsigned long escEndTime = micros() - (0 * SECOND);  // initialize esc end time as one second ago
-float escDurSecs = 3.0;
+float escDurSecs = 5.0;
+float propSpeed = 0.75; // close to max
 
 // receiver
 RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
@@ -206,14 +207,14 @@ bool control_prop(int sentCode)
   }
 
   // set esc target - update global
-  if (micros() < escEndTime) {
+  if ((micros() < escEndTime) and (pitch > -20.0)) {
 
-    Serial.print(micros() / SECOND);
-    Serial.print(" - ");
-    Serial.print(escEndTime / SECOND);
-    Serial.print(" - ");
-    Serial.println("Going!");
-    escPos = -0.5;
+//    Serial.print(micros() / SECOND);
+//    Serial.print(" - ");
+//    Serial.print(escEndTime / SECOND);
+//    Serial.print(" - ");
+//    Serial.println("Going!");
+    escPos = propSpeed;
     return true;
   } else {
     escPos = -1.0; // TODO: Update code so stop can be 0.0
@@ -298,6 +299,9 @@ void setup()
 
   // finalize
   Serial.println("setup complete");
+
+  // kick off run
+  escEndTime = micros() + (escDurSecs * SECOND); 
 }
 
 
