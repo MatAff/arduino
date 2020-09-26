@@ -8,9 +8,15 @@
  * upload
  */
 
+ /* REFERENCE
+  * pins: https://cdn.sparkfun.com/assets/9/c/3/c/4/523a1765757b7f5c6e8b4567.png
+  */
+
 /* DESIGN SPEC
  * adjust control surfaces to maintain roll target (defaults to 0.0)
- * when passed signal temporatily power esc)
+ * adjust tail to maintain pitch, reducte pitch when prop not running
+ * run motor at start kill after set time
+ * 
  */
 
  /* TODO
@@ -19,6 +25,8 @@
   * update scale function to rescale from any scale
   * write tests for functions
   * investigate options for strucs/classes
+  * add tail control based on pitch
+  * figure out why pitch > -20.0 work for cutting motor on decend
   */
 
 #include <RH_ASK.h>
@@ -34,6 +42,7 @@
 #define PowerPin 16
 #define ServoPinR 6
 #define ServoPinL 8
+#define ServoPinTail 4
 #define EscPin 9 
 
 // mode
@@ -42,12 +51,15 @@ int mode = 3; // refers to button D3
 // servo globals
 Servo servoR;
 Servo servoL;
+Servo servoTail;
 float servoMin = 10.0;
 float servoMax = 170.0;
 float servoPosLeft = 0.0;
 float servoPosRight = 0.0;
+float servoPosTail = 0.0;
 float servoLastLeft = -1.0;
 float servoLastRight = -1.0;
+float servoLastTail = -1.0;
 
 // esc globals
 Servo esc;
@@ -62,6 +74,10 @@ unsigned long SECOND = 1000000;
 unsigned long escEndTime = micros() - (0 * SECOND);  // initialize esc end time as one second ago
 float escDurSecs = 5.0;
 float propSpeed = 0.75; // close to max
+
+// roll pitch
+float rollTarget = 0.0;
+float pitchTarget = 0.0;
 
 // receiver
 RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
@@ -185,15 +201,21 @@ int input_receiver()
 
 }
 
-void control_roll(float rollTarget=0.0, float pitchTarget=0.0)
+void control_roll_pitch(float rollTarget=0.0, float pitchTarget=0.0)
 {
   float rollMax = 15.0;
   float rollDelta = rollTarget - roll;
+  float pitchMax = 15.0;
+  float pitchDelta = pitchTarget - pitch;
 
-  // updates globals
+  // updates left right globals
   servoPosLeft = limit(rollDelta / rollMax, -1.0, 1.0);
   servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0) * -1.0;
+
+  // update tail global
+  servoPosTail = limit(pitchDelta / pitchMax, -1.0, 1.0);
 }
+
 
 // DEB - sets escPos
 bool control_prop(int sentCode)
@@ -208,12 +230,6 @@ bool control_prop(int sentCode)
 
   // set esc target - update global
   if ((micros() < escEndTime) and (pitch > -20.0)) {
-
-//    Serial.print(micros() / SECOND);
-//    Serial.print(" - ");
-//    Serial.print(escEndTime / SECOND);
-//    Serial.print(" - ");
-//    Serial.println("Going!");
     escPos = propSpeed;
     return true;
   } else {
@@ -234,16 +250,15 @@ void act_servos()
     servoLastRight = set_servo(servoR, servoPosRight, false, false);
   }
 
+  if (servoLastTail != servoPosTail) {
+    servoLastTail = set_servo(servoTail, servoPosTail, false, false);
+  }
+
 }
 
 // DEB - calculates escPosLimit and passes to set_esc
 void act_esc() {
 
-//  Serial.print("escLast: ");
-//  Serial.println(escPos);
-//  Serial.print("escLast: ");
-//  Serial.println(escLast);
-  
   if (escLast != escPos) {
     
     // limit to steps size
@@ -266,8 +281,10 @@ void setup()
   // servos
   servoR.attach(ServoPinR);
   servoL.attach(ServoPinL);
+  servoTail.attach(ServoPinTail);
   set_servo(servoL, servoPosLeft);
   set_servo(servoR, servoPosRight);
+  set_servo(servoR, servoPosTail);
   
   // esc
   esc.attach(EscPin);
@@ -287,6 +304,7 @@ void setup()
   delay(1000);
   
   // esc
+  // TODO: move to seperate function
   Serial.println("esc - low");
   esc.writeMicroseconds(escMin);  // TODO: find out if a signal has to be sent continuously
   delay(2000);
@@ -311,7 +329,7 @@ void loop() {
   /* input section */
 
   // imu
-  input_roll_pitch();
+  input_roll_pitch(true);
 
   // receiver
   int sentCode = input_receiver();
@@ -321,11 +339,16 @@ void loop() {
   // decision logic
   if (mode==3) {
 
-    // roll
-    control_roll();
-
     // prop
     control_prop(sentCode);
+
+    // adjust desired pitch based on escPos
+    if (escPos < 0.0) {
+      pitchTarget = -15.0;
+    }
+    
+    // roll
+    control_roll_pitch(rollTarget, pitchTarget);
 
   }
 
@@ -333,9 +356,6 @@ void loop() {
 
   // servos
   act_servos();
-
-//  Serial.print("esc pos: ");
-//  Serial.println(escPos);
 
   // esc
   act_esc();
@@ -395,49 +415,3 @@ void printEvent(sensors_event_t* event) {
   Serial.print(" | z= ");
   Serial.println(z);
 }
-
-// OLD STUFF BELOW // OLD STUFF BELOW // OLD STUFF BELOW //
-
-//double DEG_2_RAD = 0.01745329251; //trig functions require radians, BNO055 outputs degrees
-
-//int servo_positions[3] = {10, 90, 170};
-//int servo_position = 90;
-
-
-//  Serial.print("Servo position: ");
-//  Serial.println(servo_position);
-
-  // bno.getEvent(&angVelData, Adafruit_BNO055::VECTOR_GYROSCOPE);
-  // bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-
-
-    /*int servo_adjust = String((char*)buf).toInt();
-    if (servo_adjust >= 1 && servo_adjust <= 3) {
-      servo_position = servo_positions[servo_adjust-1];
-    }*/
-
-    
-    //double z = orientationData.orientation.z;
-
-    /*if (z > 10) 
-    {
-      servo_position = servo_positions[0];
-      Serial.println("right");
-    }
-    if (z < -10) 
-    {
-      servo_position = servo_positions[2];
-      Serial.println("left");
-    }*/
-
- //float unit_to_servo(float xy, float servoMin, float servoMax)
-//{
-//  /* convert range [-1, 1] to [servoMin, servoMax] */
-//  return (xy + 1.0) / 2.0 * (servoMax - servoMin) + servoMin;
-//}
-//
-//
-//float invert(float value, float min_value, float max_value)
-//{
-//  return max_value - value + min_value;
-//}
