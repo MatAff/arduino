@@ -51,16 +51,16 @@ int ModeZero = 0;
 int ModeWave = 1;
 
 // mode
-int mode = ModeZero; 
-//int mode = ModeWave; 
+//int mode = ModeZero; 
+int mode = ModeWave; 
 
 // delay
 float delayMs = 20.0;
 
 // wave
-float waveSpeed = 0.5; // nr of complete cycles per minute
-float waveSize = 20.0; // max turning angle
-float wavePhase = 0.75; // part of complete sine wave
+float waveSpeed = 0.5; // nr of complete cycles per second
+float waveSize = 60.0; // max turning angle
+float wavePhase = 1.0; // part of complete sine wave
 int nrServos = 4.0;
 
 // derive features
@@ -88,7 +88,9 @@ float servoPos4 = 90.0;
 
 // time
 unsigned long SECOND = 1000000; 
-unsigned long current_time = micros();
+unsigned long setTime = micros();
+int prestartDurationSecs = 5;
+int runDurationSecs = 100;
 
 //// receiver
 //RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
@@ -114,6 +116,12 @@ void setup()
   // finalize
   Serial.println("setup complete");
 
+  // wait and reset setTime
+  while (micros() < (setTime + (prestartDurationSecs * SECOND))) {
+    delay(delayMs);
+  }
+  setTime = micros();
+
 }
 
 /* RUN */
@@ -128,7 +136,7 @@ void loop() {
 
   if (mode==ModeZero) {
 
-//    control_zero();
+     control_zero();
 
   }
 
@@ -143,6 +151,13 @@ void loop() {
   act_servos();
 
   delay(delayMs); 
+
+
+  /* pause execution */
+  
+  while (micros() > setTime + (runDurationSecs * SECOND)) {
+    delay(delayMs);
+  }
 
 }
 
@@ -198,10 +213,10 @@ void control_wave(bool wordy)
 
 void act_servos() 
 {
-  servo1.write(servoPos1);
-  servo2.write(servoPos2);
-  servo3.write(servoPos3);
-  servo4.write(servoPos4);
+  servo1.write(servoPos1 + 0);
+  servo2.write(servoPos2 - 0);
+  servo3.write(servoPos3 - 0);
+  servo4.write(servoPos4 - 0);
 }
 
 /* HELPERS */
