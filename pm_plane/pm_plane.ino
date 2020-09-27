@@ -9,14 +9,13 @@
 */
 
 /* REFERENCE
-   pins: https://cdn.sparkfun.com/assets/9/c/3/c/4/523a1765757b7f5c6e8b4567.png
-*/
+ * pins: https://cdn.sparkfun.com/assets/9/c/3/c/4/523a1765757b7f5c6e8b4567.png
+ */
 
 /* DESIGN SPEC
    adjust control surfaces to maintain roll target (defaults to 0.0)
    adjust tail to maintain pitch, reducte pitch when prop not running
    run motor at start kill after set time
-
 */
 
 /* TODO
@@ -60,8 +59,8 @@ class FPS {
 
       // calculate fps when sufficient time has passed
       if (deltaTime > this->SECOND) {
-        this->fps = count / deltaTime * this->SECOND;
-        this->count = 0;
+        this->fps = float(count) / deltaTime * this->SECOND;
+        this->count = 0.0;
         this->lastUpdateTime = currentTime;
         Serial.print("fps: ");
         Serial.println(this->fps);
@@ -80,10 +79,11 @@ struct Segment {
 };
 
 // header - predeclare function to allow order change
-extern float set_servo(Servo servo, float pos, bool invert = false, bool wordy = false);
+extern float set_servo(Servo servo, float pos, bool do_invert = false, bool wordy = false);
 extern void input_roll_pitch(bool wordy = false);
 extern void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0);
 extern float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false);
+extern void control_journey(bool wordy = false);
 
 // mode
 int mode = 3; // refers to button D3
@@ -112,8 +112,8 @@ int escStepSize = 0.01; // in unit
 // prop control
 unsigned long SECOND = 1000000;
 unsigned long escEndTime = micros() - (0 * SECOND);  // initialize esc end time as one second ago
-float escDurSecs = 5.0;
-float propSpeed = 0.75; // close to max
+float escDurSecs = 5.0; // TODO: use journey instead
+float propSpeed = 0.75; // close to max // TODO: use journey instead
 
 // roll pitch
 float rollTarget = 0.0;
@@ -135,13 +135,19 @@ unsigned long startTime = micros();
 // fps
 FPS fps;
 
+// segment
+Segment takeoff = {"takeoff", 3.0, 0.0, 0.0, 0.75};
+Segment cruise = {"cruise", 3.0, 0.0, 0.0, 0.25};
+Segment left = {"left", 3.0, 15.0, 0.0, 0.25};
+Segment right = {"right", 3.0, -15.0, 0.0, 0.25};
+Segment land = {"land", 3.0, 0.0, -20.0, -1.0};
+
 // journey
-Segment takeoff = {String("takeoff"), 3.0, 0.0, 0.0, 0.75};
-Segment cruise = {String("takeoff"), 3.0, 0.0, 0.0, 0.25};
-Segment left = {String("takeoff"), 3.0, 15.0, 0.0, 0.25};
-Segment right = {String("takeoff"), 3.0, -15.0, 0.0, 0.25};
-Segment land = {String("takeoff"), 3.0, 0.0, -20.0, -1.0};
-Segment journey[] = {takeoff, cruise, land}; 
+Segment journey[] = {takeoff, cruise, land};
+int segmentIndex = -1;
+int lastSegmentIndex = 3 - 1;
+Segment currentSegment;
+float segmentEndTime = 0.0;
 
 /* SETUP */
 
@@ -176,14 +182,11 @@ void setup()
   }
   delay(1000);
 
-  // esc
-  esc_calibrate();
-
   // finalize
   Serial.println("setup complete");
 
   // set kill time
-  escEndTime = micros() + (escDurSecs * SECOND);
+  // escEndTime = micros() + (escDurSecs * SECOND);
 
   // fps
   fps = FPS();
@@ -196,7 +199,7 @@ void loop() {
   /* input section */
 
   // imu
-  input_roll_pitch(true);
+  input_roll_pitch(false);
 
   // receiver
   int sentCode = input_receiver();
@@ -207,13 +210,15 @@ void loop() {
   /* control section */
 
   // decision logic
-  if (mode == 3) {
+  if (mode == 3) { // TODO use named constants instead of numbers
 
+    control_journey(true);
+    
     // prop
     control_prop(sentCode);
 
     // adjust desired pitch based on escPos
-    if (escPos < 0.0) {
+    if (propSpeed < 0.0) {
       pitchTarget = -15.0;
     }
 
@@ -279,21 +284,52 @@ int input_receiver()
 
 /* CONTROL */
 
+void control_journey(bool wordy = false) {
+  float currentTime = micros();
+  if (currentTime > segmentEndTime) {
+    if (segmentIndex < lastSegmentIndex) {
+      segmentIndex++;
+      currentSegment = journey[segmentIndex];
+      segmentEndTime = micros() + (currentSegment.durationSecs * SECOND);
+      if (wordy) {
+        Serial.print("Starting segment ");
+        Serial.print(segmentIndex);
+        Serial.print("/");
+        Serial.print(lastSegmentIndex);
+        Serial.print(" ");
+        Serial.println(currentSegment.name);
+      }
+    } else {
+      currentSegment = land;
+      segmentEndTime = (micros() + 3600) * SECOND;
+    }
+    
+    pitchTarget = currentSegment.targetPitch;
+    rollTarget = currentSegment.targetRoll;
+    propSpeed = currentSegment.propSpeed;
+
+    if (wordy) {
+      message_value("rollTarget: ", rollTarget);
+      message_value("pitchTarget: ", pitchTarget);
+      message_value("propSpeed: ", propSpeed);
+    }
+  }
+}
+
 void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
 {
-  float rollMax = 15.0;
+  float rollMax = 10.0;
   float rollDelta = rollTarget - roll;
-  float pitchMax = 15.0;
+  float pitchMax = 10.0;
   float pitchDelta = pitchTarget - pitch;
 
   // updates left right globals
   servoPosLeft = limit(rollDelta / rollMax, -1.0, 1.0);
-  servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0) * -1.0;
+  servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0);
 
   // update tail global
-  servoPosTail = limit(pitchDelta / pitchMax, -1.0, 1.0);
+  servoPosTail = limit(pitchDelta / pitchMax, -1.0, 1.0) * -1.0;
 }
-
 
 // DEB - sets escPos
 bool control_prop(int sentCode)
@@ -307,7 +343,7 @@ bool control_prop(int sentCode)
   }
 
   // set esc target - update global
-  if ((micros() < escEndTime) and (pitch > -20.0)) {
+  if (pitch > -20.0) {
     escPos = propSpeed;
     return true;
   } else {
@@ -327,13 +363,12 @@ void act_servos()
   }
 
   if (servoLastRight != servoPosRight) {
-    servoLastRight = set_servo(servoR, servoPosRight, false, false);
+    servoLastRight = set_servo(servoR, servoPosRight, true, false);
   }
 
   if (servoLastTail != servoPosTail) {
     servoLastTail = set_servo(servoTail, servoPosTail, false, false);
   }
-
 }
 
 // DEB - calculates escPosLimit and passes to set_esc
@@ -372,11 +407,14 @@ float invert(float val, float minVal, float maxVal) {
   return maxVal - val + minVal;
 }
 
-float set_servo(Servo servo, float pos, bool invert = false, bool wordy = false)
+float set_servo(Servo servo, float pos, bool do_invert = false, bool wordy = false)
 {
-  // scale, limit, write
+  // scale, limit, invert, write
   float posScaled = scale(pos, -1.0, 1.0, servoMin, servoMax);
   posScaled = min(max(posScaled, servoMin), servoMax);
+  if (do_invert) {
+    posScaled = invert(posScaled, servoMin, servoMax);
+  }
   servo.write(posScaled);
 
   if (wordy) { message_value("Setting servo position: ", posScaled); }
@@ -403,7 +441,7 @@ float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false) {
 
 float roll_standardize(float roll)
 {
-  return roll;
+  return roll - 90.0;
 }
 
 float pitch_standardize(float pitch)
