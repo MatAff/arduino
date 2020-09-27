@@ -354,21 +354,13 @@ void act_esc() {
 
 /* HELPERS */
 
-float scale_unit(float val, float minVal, float maxVal, bool limit, bool invert)
-{
-  /* scale val from unit range [-1, 1] to [minVal, maxVal] */
+void message_value(String msg, float val) {
+  Serial.print(msg);
+  Serial.println(val);  
+}
 
-  val = (val + 1.0) / 2.0 * (maxVal - minVal) + minVal;
-
-  if (limit) {
-    val = min(max(val, minVal), maxVal);
-  }
-
-  if (invert) {
-    val = maxVal - val + minVal;
-  }
-
-  return val;
+float scale(float val, float inMin, float inMax, float outMin, float outMax) {
+  return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;  
 }
 
 float limit(float val, float minVal, float maxVal)
@@ -376,16 +368,18 @@ float limit(float val, float minVal, float maxVal)
   return min(max(val, minVal), maxVal);
 }
 
+float invert(float val, float minVal, float maxVal) {
+  return maxVal - val + minVal;
+}
+
 float set_servo(Servo servo, float pos, bool invert = false, bool wordy = false)
 {
-  float posScaled = scale_unit(pos, servoMin, servoMax, true, invert);
-
-  if (wordy) {
-    Serial.print("Setting servo position: ");
-    Serial.println(posScaled);
-  }
-
+  // scale, limit, write
+  float posScaled = scale(pos, -1.0, 1.0, servoMin, servoMax);
+  posScaled = min(max(posScaled, servoMin), servoMax);
   servo.write(posScaled);
+
+  if (wordy) { message_value("Setting servo position: ", posScaled); }
 
   delay(15);  // TODO: move delay to overall loop
 
@@ -395,17 +389,14 @@ float set_servo(Servo servo, float pos, bool invert = false, bool wordy = false)
 // DEB - scales, writes and returns
 float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false) {
 
-  // scale
-  float posScaled = scale_unit(pos, escMin, escMax, true, false);
-
-  if (wordy) {
-    Serial.print("Setting esc position: ");
-    Serial.println(posScaled);
-  }
-
+  // scale, limit, write
+  float posScaled = scale(pos, -1.0, 1.0, escMin, escMax);
+  posScaled = limit(posScaled, escMin, escMax);
   esc.writeMicroseconds(posScaled);
 
-  delay(15);
+  if (wordy) { message_value("Setting esc position: ", posScaled); }
+
+  delay(15); // TODO: move to overall loop
 
   return pos;
 }
@@ -466,6 +457,24 @@ void printEvent(sensors_event_t* event) {
 }
 
 // UNUSED CODE BELOW
+
+//float scale_unit(float val, float minVal, float maxVal, bool limit, bool invert)
+//{
+//  /* scale val from unit range [-1, 1] to [minVal, maxVal] */
+//
+//  val = (val + 1.0) / 2.0 * (maxVal - minVal) + minVal;
+//
+//  if (limit) {
+//    val = min(max(val, minVal), maxVal);
+//  }
+//
+//  if (invert) {
+//    val = maxVal - val + minVal;
+//  }
+//
+//  return val;
+//}
+
 
 //// translate x or y stick values to -1 to 1 range
 //float stick_trans(float xy)
