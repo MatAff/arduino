@@ -24,9 +24,9 @@
    include scale a global nature into variable names
    update scale function to rescale from any scale
    write tests for functions
-   investigate options for strucs/classes
-   add tail control based on pitch
    figure out why pitch > -20.0 work for cutting motor on decend
+   investigate options for strucs/classes >> Done
+   add tail control based on pitch >> Done
 */
 
 #include <RH_ASK.h>
@@ -79,6 +79,12 @@ struct Segment {
   float propSpeed;
 };
 
+// header - predeclare function to allow order change
+extern float set_servo(Servo servo, float pos, bool invert = false, bool wordy = false);
+extern void input_roll_pitch(bool wordy = false);
+extern void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0);
+extern float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false);
+
 // mode
 int mode = 3; // refers to button D3
 
@@ -130,7 +136,223 @@ unsigned long startTime = micros();
 FPS fps;
 
 // journey
-//Segment journey[] = {Segment(String("takeoff"), 3.0, 0.0, 0.0, 0.75)}; // TODO: get this working
+Segment takeoff = {String("takeoff"), 3.0, 0.0, 0.0, 0.75};
+Segment cruise = {String("takeoff"), 3.0, 0.0, 0.0, 0.25};
+Segment left = {String("takeoff"), 3.0, 15.0, 0.0, 0.25};
+Segment right = {String("takeoff"), 3.0, -15.0, 0.0, 0.25};
+Segment land = {String("takeoff"), 3.0, 0.0, -20.0, -1.0};
+Segment journey[] = {takeoff, cruise, land}; 
+
+/* SETUP */
+
+void setup()
+{
+  Serial.begin(9600);  // Debugging only
+  Serial.println("Initializing");
+
+  // servos
+  servoR.attach(ServoPinR);
+  servoL.attach(ServoPinL);
+  servoTail.attach(ServoPinTail);
+  set_servo(servoL, servoPosLeft);
+  set_servo(servoR, servoPosRight);
+  set_servo(servoR, servoPosTail);
+
+  // esc
+  esc.attach(EscPin);
+  set_servo(esc, escPos); // TODO: drop, this shouldn't do anything
+  esc_calibrate();
+
+  // receiver
+  if (!driver.init()) {
+    Serial.println("init failed - receiver");
+    while (1); // TODO: figure out what this does
+  }
+
+  // imu
+  if (!bno.begin()) {
+    Serial.print("No BNO055 detected");
+    while (1); // TODO: figure out what this does
+  }
+  delay(1000);
+
+  // esc
+  esc_calibrate();
+
+  // finalize
+  Serial.println("setup complete");
+
+  // set kill time
+  escEndTime = micros() + (escDurSecs * SECOND);
+
+  // fps
+  fps = FPS();
+}
+
+/* RUN */
+
+void loop() {
+
+  /* input section */
+
+  // imu
+  input_roll_pitch(true);
+
+  // receiver
+  int sentCode = input_receiver();
+
+  // fps
+  fps.get_fps();
+
+  /* control section */
+
+  // decision logic
+  if (mode == 3) {
+
+    // prop
+    control_prop(sentCode);
+
+    // adjust desired pitch based on escPos
+    if (escPos < 0.0) {
+      pitchTarget = -15.0;
+    }
+
+    // roll
+    control_roll_pitch(rollTarget, pitchTarget);
+
+  }
+
+  /* act section */
+
+  // servos
+  act_servos();
+
+  // esc
+  act_esc();
+
+}
+
+/* INPUT */
+
+void input_roll_pitch(bool wordy = false)
+{
+  // set global roll and pitch
+  sensors_event_t orientationData, linearAccelData;
+
+  //  triggered after delay
+  if ((micros() - startTime) > (BNO055_SAMPLERATE_DELAY_MS * 1000)) {
+
+    startTime = micros(); // reset timer
+
+    // get orientation and standardize
+    bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+    roll = roll_standardize(orientationData.orientation.z);
+    pitch = pitch_standardize(orientationData.orientation.y);
+
+    if (wordy) {
+      printEvent(&orientationData);
+      Serial.print("Roll: ");
+      Serial.println(roll);
+      Serial.print("Pitch: ");
+      Serial.println(pitch);
+    }
+  }
+}
+
+int input_receiver()
+{
+  // return int of message received or zero
+  uint8_t buf[50];
+  uint8_t buflen = sizeof(buf);
+  memset(buf, 0, buflen);
+  int sentCode = 0;
+
+  if (driver.recv(buf, &buflen)) {
+    sentCode = String((char*)buf).toInt();  // update sent code
+    Serial.print("Message: ");
+    Serial.println(sentCode);
+  }
+
+  return sentCode;
+
+}
+
+/* CONTROL */
+
+void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
+{
+  float rollMax = 15.0;
+  float rollDelta = rollTarget - roll;
+  float pitchMax = 15.0;
+  float pitchDelta = pitchTarget - pitch;
+
+  // updates left right globals
+  servoPosLeft = limit(rollDelta / rollMax, -1.0, 1.0);
+  servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0) * -1.0;
+
+  // update tail global
+  servoPosTail = limit(pitchDelta / pitchMax, -1.0, 1.0);
+}
+
+
+// DEB - sets escPos
+bool control_prop(int sentCode)
+{
+
+  // update end esc end time
+  if (sentCode == 1) {
+    escEndTime = micros() + (escDurSecs * SECOND);
+    Serial.println("setting");
+    Serial.println(escEndTime);
+  }
+
+  // set esc target - update global
+  if ((micros() < escEndTime) and (pitch > -20.0)) {
+    escPos = propSpeed;
+    return true;
+  } else {
+    escPos = -1.0; // TODO: Update code so stop can be 0.0
+    return false;
+  }
+
+}
+
+/* ACT */
+
+void act_servos()
+{
+
+  if (servoLastLeft != servoPosLeft) {
+    servoLastLeft = set_servo(servoL, servoPosLeft, true, false);
+  }
+
+  if (servoLastRight != servoPosRight) {
+    servoLastRight = set_servo(servoR, servoPosRight, false, false);
+  }
+
+  if (servoLastTail != servoPosTail) {
+    servoLastTail = set_servo(servoTail, servoPosTail, false, false);
+  }
+
+}
+
+// DEB - calculates escPosLimit and passes to set_esc
+void act_esc() {
+
+  if (escLast != escPos) {
+
+    // limit to steps size
+    //    float escPosLimit = escLast + limit(escPos - escLast, escStepSize, -escStepSize);
+    float escPosLimit = escPos;
+
+    Serial.print("escPosLimit: ");
+    Serial.println(escPosLimit);
+
+    escLast = set_esc(esc, escPosLimit, false, true);
+  }
+}
+
+/* HELPERS */
 
 float scale_unit(float val, float minVal, float maxVal, bool limit, bool invert)
 {
@@ -198,217 +420,16 @@ float pitch_standardize(float pitch)
   return -pitch;
 }
 
-void input_roll_pitch(bool wordy = false)
-{
-  // set global roll and pitch
-  sensors_event_t orientationData, linearAccelData;
-
-  //  triggered after delay
-  if ((micros() - startTime) > (BNO055_SAMPLERATE_DELAY_MS * 1000)) {
-
-    startTime = micros(); // reset timer
-
-    // get orientation and standardize
-    bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
-    roll = roll_standardize(orientationData.orientation.z);
-    pitch = pitch_standardize(orientationData.orientation.y);
-
-    if (wordy) {
-      printEvent(&orientationData);
-      Serial.print("Roll: ");
-      Serial.println(roll);
-      Serial.print("Pitch: ");
-      Serial.println(pitch);
-    }
-  }
-}
-
-int input_receiver()
-{
-  // return int of message received or zero
-  uint8_t buf[50];
-  uint8_t buflen = sizeof(buf);
-  memset(buf, 0, buflen);
-  int sentCode = 0;
-
-  if (driver.recv(buf, &buflen)) {
-    sentCode = String((char*)buf).toInt();  // update sent code
-    Serial.print("Message: ");
-    Serial.println(sentCode);
-  }
-
-  return sentCode;
-
-}
-
-void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
-{
-  float rollMax = 15.0;
-  float rollDelta = rollTarget - roll;
-  float pitchMax = 15.0;
-  float pitchDelta = pitchTarget - pitch;
-
-  // updates left right globals
-  servoPosLeft = limit(rollDelta / rollMax, -1.0, 1.0);
-  servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0) * -1.0;
-
-  // update tail global
-  servoPosTail = limit(pitchDelta / pitchMax, -1.0, 1.0);
-}
-
-
-// DEB - sets escPos
-bool control_prop(int sentCode)
-{
-
-  // update end esc end time
-  if (sentCode == 1) {
-    escEndTime = micros() + (escDurSecs * SECOND);
-    Serial.println("setting");
-    Serial.println(escEndTime);
-  }
-
-  // set esc target - update global
-  if ((micros() < escEndTime) and (pitch > -20.0)) {
-    escPos = propSpeed;
-    return true;
-  } else {
-    escPos = -1.0; // TODO: Update code so stop can be 0.0
-    return false;
-  }
-
-}
-
-void act_servos()
-{
-
-  if (servoLastLeft != servoPosLeft) {
-    servoLastLeft = set_servo(servoL, servoPosLeft, true, false);
-  }
-
-  if (servoLastRight != servoPosRight) {
-    servoLastRight = set_servo(servoR, servoPosRight, false, false);
-  }
-
-  if (servoLastTail != servoPosTail) {
-    servoLastTail = set_servo(servoTail, servoPosTail, false, false);
-  }
-
-}
-
-// DEB - calculates escPosLimit and passes to set_esc
-void act_esc() {
-
-  if (escLast != escPos) {
-
-    // limit to steps size
-    //    float escPosLimit = escLast + limit(escPos - escLast, escStepSize, -escStepSize);
-    float escPosLimit = escPos;
-
-    Serial.print("escPosLimit: ");
-    Serial.println(escPosLimit);
-
-    escLast = set_esc(esc, escPosLimit, false, true);
-  }
-}
-
-// SETUP PHASE
-void setup()
-{
-  Serial.begin(9600);  // Debugging only
-  Serial.println("Initializing");
-
-  // servos
-  servoR.attach(ServoPinR);
-  servoL.attach(ServoPinL);
-  servoTail.attach(ServoPinTail);
-  set_servo(servoL, servoPosLeft);
-  set_servo(servoR, servoPosRight);
-  set_servo(servoR, servoPosTail);
-
-  // esc
-  esc.attach(EscPin);
-  set_servo(esc, escPos); // TODO: drop, this shouldn't do anything
-  esc_calibrate();
-
-  // receiver
-  if (!driver.init()) {
-    Serial.println("init failed - receiver");
-    while (1); // TODO: figure out what this does
-  }
-
-  // imu
-  if (!bno.begin()) {
-    Serial.print("No BNO055 detected");
-    while (1); // TODO: figure out what this does
-  }
-  delay(1000);
-
-  // esc
-  esc_calibrate();
-
-  // finalize
-  Serial.println("setup complete");
-
-  // set kill time
-  escEndTime = micros() + (escDurSecs * SECOND);
-
-  // fps
-  fps = FPS();
+void esc_calibrate_step(String msg, int val, int delayMs) {
+  Serial.println(msg);
+  esc.writeMicroseconds(val);
+  delay(delayMs);
 }
 
 void esc_calibrate() {
-  Serial.println("esc - low");
-  esc.writeMicroseconds(escMin);  // TODO: find out if a signal has to be sent continuously
-  delay(2000);
-  Serial.println("esc - high");
-  esc.writeMicroseconds(escMax);
-  delay(2000);
-  Serial.println("esc - low");
-  esc.writeMicroseconds(escMin);
-  delay(2000);
-}
-
-// RUN PHASE
-void loop() {
-
-  /* input section */
-
-  // imu
-  input_roll_pitch(true);
-
-  // receiver
-  int sentCode = input_receiver();
-
-  // fps
-  fps.get_fps();
-
-  /* control section */
-
-  // decision logic
-  if (mode == 3) {
-
-    // prop
-    control_prop(sentCode);
-
-    // adjust desired pitch based on escPos
-    if (escPos < 0.0) {
-      pitchTarget = -15.0;
-    }
-
-    // roll
-    control_roll_pitch(rollTarget, pitchTarget);
-
-  }
-
-  /* act section */
-
-  // servos
-  act_servos();
-
-  // esc
-  act_esc();
-
+  esc_calibrate_step("esc - low", escMin, 2000);
+  esc_calibrate_step("esc - high", escMax, 2000);
+  esc_calibrate_step("esc - low", escMin, 2000);
 }
 
 void printEvent(sensors_event_t* event) {
