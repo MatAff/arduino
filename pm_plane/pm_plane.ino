@@ -92,6 +92,26 @@ uint16_t BNO055_SAMPLERATE_DELAY_MS = 10;  // how often to read data from the bo
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);  // TODO: unused, determine relevance
 unsigned long startTime = micros();
 
+class FPS {
+  private:
+    int count = 0;
+    float fps = 0.0;
+    long lastUpdateTime = micros();
+  public:
+    get_fps() {
+      this->count += 1;
+      long currentTime = micros();
+      long deltaTime = currentTime - lastUpdateTime;
+      if (deltaTime > 1000000) {        
+        this->fps = count / deltaTime * 1000000;
+        this->count = 0;
+        this->lastUpdateTime = currentTime;
+      } else {
+        return this->fps;
+      }
+    }
+};
+
 float scale_unit(float val, float minVal, float maxVal, bool limit, bool invert) 
 {
   /* scale val from unit range [-1, 1] to [minVal, maxVal] */
@@ -288,23 +308,33 @@ void setup()
   
   // esc
   esc.attach(EscPin);
-  set_servo(esc, escPos);
-
+  set_servo(esc, escPos); // TODO: drop, this shouldn't do anything
+  esc_calibrate();
+  
   // receiver
   if (!driver.init()) {
     Serial.println("init failed - receiver");
-    while (1);
+    while (1); // TODO: figure out what this does
   }
   
   // imu
   if (!bno.begin()) {
     Serial.print("No BNO055 detected");
-    while (1);
+    while (1); // TODO: figure out what this does
   }
   delay(1000);
   
   // esc
-  // TODO: move to seperate function
+  esc_calibrate();
+
+  // finalize
+  Serial.println("setup complete");
+
+  // kick off run
+  escEndTime = micros() + (escDurSecs * SECOND); 
+}
+
+void esc_calibrate() {
   Serial.println("esc - low");
   esc.writeMicroseconds(escMin);  // TODO: find out if a signal has to be sent continuously
   delay(2000);
@@ -314,14 +344,7 @@ void setup()
   Serial.println("esc - low");
   esc.writeMicroseconds(escMin);
   delay(2000);
-
-  // finalize
-  Serial.println("setup complete");
-
-  // kick off run
-  escEndTime = micros() + (escDurSecs * SECOND); 
 }
-
 
 // RUN PHASE
 void loop() {
@@ -362,27 +385,6 @@ void loop() {
 
 }
 
-// translate x or y stick values to -1 to 1 range
-float stick_trans(float xy)
-{
-  return xy * 2 -1;
-}
-
-// round to zero if value is near zero
-float stick_near_zero(float xy, float thresh = 0.05)
-{  
-  if (abs(xy - 0.0) < thresh) {
-    return 0.0;
-  } else {
-    return xy;
-  }
-}
-
-float stick_offset_x(float x)
-{
-  return max(x - 0.02, 0.0);
-}
-
 void printEvent(sensors_event_t* event) {
   Serial.println();
   Serial.print(event->type);
@@ -415,3 +417,27 @@ void printEvent(sensors_event_t* event) {
   Serial.print(" | z= ");
   Serial.println(z);
 }
+
+// UNUSED CODE BELOW
+
+//// translate x or y stick values to -1 to 1 range
+//float stick_trans(float xy)
+//{
+//  return xy * 2 -1;
+//}
+//
+//// round to zero if value is near zero
+//float stick_near_zero(float xy, float thresh = 0.05)
+//{  
+//  if (abs(xy - 0.0) < thresh) {
+//    return 0.0;
+//  } else {
+//    return xy;
+//  }
+//}
+//
+//float stick_offset_x(float x)
+//{
+//  return max(x - 0.02, 0.0);
+//}
+//
