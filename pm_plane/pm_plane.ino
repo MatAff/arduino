@@ -136,8 +136,8 @@ unsigned long startTime = micros();
 FPS fps;
 
 // segment
-Segment takeoff = {"takeoff", 3.0, 0.0, 0.0, 0.75};
-Segment cruise = {"cruise", 3.0, 0.0, 0.0, 0.25};
+Segment takeoff = {"takeoff", 4.0, 0.0, 25.0, 1.0};
+Segment cruise = {"cruise", 2.0, 0.0, 15.0, 1.0};
 Segment left = {"left", 3.0, 15.0, 0.0, 0.25};
 Segment right = {"right", 3.0, -15.0, 0.0, 0.25};
 Segment land = {"land", 3.0, 0.0, -20.0, -1.0};
