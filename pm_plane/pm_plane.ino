@@ -31,6 +31,7 @@
 #include <RH_ASK.h>
 #include <SPI.h> // Not actually used but needed to compile
 #include <Servo.h>
+#include <SD.h>
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
@@ -43,6 +44,13 @@
 #define ServoPinL 8
 #define ServoPinTail 4
 #define EscPin 9
+
+char fileName[] = "log201004.txt"; // SD library only supports up to 8.3 names
+File fd;
+const uint8_t chipSelect = 8;
+const uint8_t cardDetect = 9;
+bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
+bool cardExists = false;
 
 // class to display fps at regular interval
 class FPS {
@@ -190,6 +198,10 @@ void setup()
 
   // fps
   fps = FPS();
+
+  // logging
+  pinMode(cardDetect, INPUT);
+  setup_sd_card();
 }
 
 /* RUN */
@@ -234,6 +246,9 @@ void loop() {
 
   // esc
   act_esc();
+
+  // log
+  write_log_data();
 
 }
 
@@ -492,6 +507,52 @@ void printEvent(sensors_event_t* event) {
   Serial.print(y);
   Serial.print(" | z= ");
   Serial.println(z);
+}
+
+void write_log_data(void) {
+
+
+  if (cardExists) {
+    fd = SD.open(fileName, FILE_WRITE);
+    if (fd) {
+      fd.print(micros()); fd.print(",");
+      fd.print(currentSegment.name); fd.print(",");
+      fd.print(roll); fd.print(",");
+      fd.print(pitch); fd.print(",");
+      fd.print(servoPosLeft); fd.print(",");
+      fd.print(servoPosRight); fd.print(",");
+      fd.print(servoPosTail); fd.print(",");
+      fd.print(escPos);
+      fd.print("\n");
+      
+      fd.flush();
+      fd.close();
+    }
+  }
+}
+
+void setup_sd_card(void) {
+  if (digitalRead(cardDetect)) {
+    if (!SD.begin(chipSelect) && !alreadyBegan) { // begin uses half-speed...
+    } else {
+      alreadyBegan = true;
+    }
+    delay(250); // Debounce insertion
+    Serial.println("Card detected");
+    cardExists = true;
+  } else {
+    Serial.println("No card detected");
+    cardExists = false;
+  }
+}
+
+void update_sd_card(void) {
+  if (!digitalRead(cardDetect)) {
+    if (cardExists) {
+      Serial.println("Card removed");
+      cardExists = false;
+    }
+  }
 }
 
 // UNUSED CODE BELOW
