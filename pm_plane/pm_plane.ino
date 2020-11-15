@@ -39,7 +39,7 @@
 
 #define TxPin 10
 #define RxPin 10
-#define PowerPin 16
+#define PowerPin A0 //16 // to 7
 #define ServoPinR 6
 #define ServoPinL 8
 #define ServoPinTail 4
@@ -47,8 +47,8 @@
 
 char fileName[] = "log201004.txt"; // SD library only supports up to 8.3 names
 File fd;
-const uint8_t chipSelect = 8;
-const uint8_t cardDetect = 9;
+const uint8_t chipSelect = 5; // 8;
+const uint8_t cardDetect = 7; // 9;
 bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
 bool cardExists = false;
 
@@ -511,10 +511,10 @@ void printEvent(sensors_event_t* event) {
 
 void write_log_data(void) {
 
-
   if (cardExists) {
     fd = SD.open(fileName, FILE_WRITE);
     if (fd) {
+      Serial.println("writing to sd");
       fd.print(micros()); fd.print(",");
       fd.print(currentSegment.name); fd.print(",");
       fd.print(roll); fd.print(",");
