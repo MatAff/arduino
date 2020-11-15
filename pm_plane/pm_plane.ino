@@ -164,6 +164,7 @@ void setup()
 //  Serial.begin(9600);  // Debugging only
   Serial.begin(57600);  // Debugging only
   Serial.println("Initializing");
+  while (!Serial);
 
   // servos
   servoR.attach(ServoPinR);
