@@ -45,7 +45,7 @@
 #define ServoPinTail 4
 #define EscPin 9
 
-char fileName[] = "log201004.txt"; // SD library only supports up to 8.3 names
+char fileName[] = "log201115.txt"; // SD library only supports up to 8.3 names
 File fd;
 const uint8_t chipSelect = 5; // 8;
 const uint8_t cardDetect = 7; // 9;
@@ -161,7 +161,8 @@ float segmentEndTime = 0.0;
 
 void setup()
 {
-  Serial.begin(9600);  // Debugging only
+//  Serial.begin(9600);  // Debugging only
+  Serial.begin(57600);  // Debugging only
   Serial.println("Initializing");
 
   // servos
