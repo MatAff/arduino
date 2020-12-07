@@ -55,12 +55,12 @@ int ModeWave = 1;
 int mode = ModeWave; 
 
 // delay
-float delayMs = 20.0;
+float delayMs = 50.0;
 
 // wave
 float waveSpeed = 0.5; // nr of complete cycles per second
-float waveSize = 60.0; // max turning angle
-float wavePhase = 1.0; // part of complete sine wave
+float waveSize = 30.0; // max turning angle
+float wavePhase = 0.5; // part of complete sine wave
 int nrServos = 4.0;
 
 // derive features
@@ -90,7 +90,7 @@ float servoPos4 = 90.0;
 unsigned long SECOND = 1000000; 
 unsigned long setTime = micros();
 int prestartDurationSecs = 5;
-int runDurationSecs = 100;
+int runDurationSecs = 20;
 
 //// receiver
 //RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
@@ -108,11 +108,16 @@ void setup()
   servo3.attach(ServoPin3);
   servo4.attach(ServoPin4);
 
-  servo1.write(servoPos1);
-  servo2.write(servoPos2);
-  servo3.write(servoPos3);
-  servo4.write(servoPos4);
+//  servo1.write(servoPos1);
+//  servo2.write(servoPos2);
+//  servo3.write(servoPos3);
+//  servo4.write(servoPos4);
     
+//  servo1.write(90);
+//  servo2.write(90);
+//  servo3.write(90);
+//  servo4.write(90);
+  
   // finalize
   Serial.println("setup complete");
 
@@ -178,7 +183,10 @@ void control_zero()
 void control_wave(bool wordy) 
 {
   // calculate phase
-  servoPhasePos1 = (servoPhasePos1 + waveTimeStep); // % 1.0; // take remainer to avoid incrementing indefinitely, and improve interpretability
+  servoPhasePos1 = (servoPhasePos1 + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
+  if (servoPhasePos1 > 1.0) {
+    servoPhasePos1 = servoPhasePos1 - 1.0;
+  }
   servoPhasePos2 = servoPhasePos1 + waveServoStep;
   servoPhasePos3 = servoPhasePos2 + waveServoStep;
   servoPhasePos4 = servoPhasePos3 + waveServoStep;
@@ -204,7 +212,7 @@ void control_wave(bool wordy)
     servoStr += String(servoPos3, 2) + "; ";
     servoStr += String(servoPos4, 2) + "; ";
 
-    Serial.println(phaseStr);
+//    Serial.println(phaseStr);
     Serial.println(servoStr);
   }
 }
@@ -213,10 +221,10 @@ void control_wave(bool wordy)
 
 void act_servos() 
 {
-  servo1.write(servoPos1 + 0);
-  servo2.write(servoPos2 - 0);
-  servo3.write(servoPos3 - 0);
-  servo4.write(servoPos4 - 0);
+  servo1.write(servoPos1 + 0.0);
+  servo2.write(servoPos2 + 0.0);
+  servo3.write(servoPos3 + 0.0);
+  servo4.write(servoPos4 + 0.0);
 }
 
 /* HELPERS */

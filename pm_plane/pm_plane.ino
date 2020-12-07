@@ -161,10 +161,10 @@ float segmentEndTime = 0.0;
 
 void setup()
 {
-//  Serial.begin(9600);  // Debugging only
-  Serial.begin(57600);  // Debugging only
+  Serial.begin(9600);  // Debugging only
+//  Serial.begin(57600);  // Debugging only
   Serial.println("Initializing");
-  while (!Serial);
+//  while (!Serial);
 
   // servos
   servoR.attach(ServoPinR);
@@ -458,7 +458,7 @@ float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false) {
 
 float roll_standardize(float roll)
 {
-  return roll - 90.0;
+  return roll;
 }
 
 float pitch_standardize(float pitch)
