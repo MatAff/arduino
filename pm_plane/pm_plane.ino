@@ -94,7 +94,8 @@ extern float set_esc(Servo esc, float pos, bool invert = false, bool wordy = fal
 extern void control_journey(bool wordy = false);
 
 // mode
-int mode = 3; // refers to button D3
+#define CONTROLLED_JOURNEY 3 // refers to button D3
+int mode = CONTROLLED_JOURNEY;
 
 // servo globals
 Servo servoR;
@@ -224,7 +225,7 @@ void loop() {
   /* control section */
 
   // decision logic
-  if (mode == 3) { // TODO use named constants instead of numbers
+  if (mode == CONTROLLED_JOURNEY) {
 
     control_journey(true);
     
