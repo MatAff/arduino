@@ -45,7 +45,7 @@
 #define ServoPinTail 4
 #define EscPin 9
 
-char fileName[] = "log201115.txt"; // SD library only supports up to 8.3 names
+char fileName[] = "201213aa.txt"; // SD library only supports up to 8.3 names
 File fd;
 const uint8_t chipSelect = 5; // 8;
 const uint8_t cardDetect = 7; // 9;
