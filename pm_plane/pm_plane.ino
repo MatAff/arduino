@@ -164,7 +164,7 @@ void setup()
   Serial.begin(9600);  // Debugging only
 //  Serial.begin(57600);  // Debugging only
 //  Serial.println("Initializing");
-//  while (!Serial);
+//  while (!Serial); // don't run if not plugged in via USB
 
   // servos
   servoR.attach(ServoPinR);
@@ -182,13 +182,13 @@ void setup()
   // receiver
   if (!driver.init()) {
 //    Serial.println("init failed - receiver");
-    while (1); // TODO: figure out what this does
+    while (1); // don't run if receiver not detected
   }
 
   // imu
   if (!bno.begin()) {
 //    Serial.print("No BNO055 detected");
-    while (1); // TODO: figure out what this does
+    while (1); // don't run if imu not detected
   }
   delay(1000);
 
