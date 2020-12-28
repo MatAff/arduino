@@ -45,7 +45,7 @@
 #define ServoPinTail 4
 #define EscPin 9
 
-char fileName[] = "log201115.txt"; // SD library only supports up to 8.3 names
+char fileName[] = "201213aa.txt"; // SD library only supports up to 8.3 names
 File fd;
 const uint8_t chipSelect = 5; // 8;
 const uint8_t cardDetect = 7; // 9;
@@ -70,8 +70,8 @@ class FPS {
         this->fps = float(count) / deltaTime * this->SECOND;
         this->count = 0.0;
         this->lastUpdateTime = currentTime;
-        Serial.print("fps: ");
-        Serial.println(this->fps);
+//        Serial.print("fps: ");
+//        Serial.println(this->fps);
       } else {
         return this->fps;
       }
@@ -94,7 +94,8 @@ extern float set_esc(Servo esc, float pos, bool invert = false, bool wordy = fal
 extern void control_journey(bool wordy = false);
 
 // mode
-int mode = 3; // refers to button D3
+#define CONTROLLED_JOURNEY 3 // refers to button D3
+int mode = CONTROLLED_JOURNEY;
 
 // servo globals
 Servo servoR;
@@ -163,8 +164,8 @@ void setup()
 {
   Serial.begin(9600);  // Debugging only
 //  Serial.begin(57600);  // Debugging only
-  Serial.println("Initializing");
-//  while (!Serial);
+//  Serial.println("Initializing");
+//  while (!Serial); // don't run if not plugged in via USB
 
   // servos
   servoR.attach(ServoPinR);
@@ -181,19 +182,19 @@ void setup()
 
   // receiver
   if (!driver.init()) {
-    Serial.println("init failed - receiver");
-    while (1); // TODO: figure out what this does
+//    Serial.println("init failed - receiver");
+    while (1); // don't run if receiver not detected
   }
 
   // imu
   if (!bno.begin()) {
-    Serial.print("No BNO055 detected");
-    while (1); // TODO: figure out what this does
+//    Serial.print("No BNO055 detected");
+    while (1); // don't run if imu not detected
   }
   delay(1000);
 
   // finalize
-  Serial.println("setup complete");
+//  Serial.println("setup complete");
 
   // set kill time
   // escEndTime = micros() + (escDurSecs * SECOND);
@@ -224,7 +225,7 @@ void loop() {
   /* control section */
 
   // decision logic
-  if (mode == 3) { // TODO use named constants instead of numbers
+  if (mode == CONTROLLED_JOURNEY) {
 
     control_journey(true);
     
@@ -272,11 +273,11 @@ void input_roll_pitch(bool wordy = false)
     pitch = pitch_standardize(orientationData.orientation.y);
 
     if (wordy) {
-      printEvent(&orientationData);
-      Serial.print("Roll: ");
-      Serial.println(roll);
-      Serial.print("Pitch: ");
-      Serial.println(pitch);
+//      printEvent(&orientationData);
+//      Serial.print("Roll: ");
+//      Serial.println(roll);
+//      Serial.print("Pitch: ");
+//      Serial.println(pitch);
     }
   }
 }
@@ -291,8 +292,8 @@ int input_receiver()
 
   if (driver.recv(buf, &buflen)) {
     sentCode = String((char*)buf).toInt();  // update sent code
-    Serial.print("Message: ");
-    Serial.println(sentCode);
+//    Serial.print("Message: ");
+//    Serial.println(sentCode);
   }
 
   return sentCode;
@@ -309,12 +310,12 @@ void control_journey(bool wordy = false) {
       currentSegment = journey[segmentIndex];
       segmentEndTime = micros() + (currentSegment.durationSecs * SECOND);
       if (wordy) {
-        Serial.print("Starting segment ");
-        Serial.print(segmentIndex);
-        Serial.print("/");
-        Serial.print(lastSegmentIndex);
-        Serial.print(" ");
-        Serial.println(currentSegment.name);
+//        Serial.print("Starting segment ");
+//        Serial.print(segmentIndex);
+//        Serial.print("/");
+//        Serial.print(lastSegmentIndex);
+//        Serial.print(" ");
+//        Serial.println(currentSegment.name);
       }
     } else {
       currentSegment = land;
@@ -355,8 +356,8 @@ bool control_prop(int sentCode)
   // update end esc end time
   if (sentCode == 1) {
     escEndTime = micros() + (escDurSecs * SECOND);
-    Serial.println("setting");
-    Serial.println(escEndTime);
+//    Serial.println("setting");
+//    Serial.println(escEndTime);
   }
 
   // set esc target - update global
@@ -397,8 +398,8 @@ void act_esc() {
     //    float escPosLimit = escLast + limit(escPos - escLast, escStepSize, -escStepSize);
     float escPosLimit = escPos;
 
-    Serial.print("escPosLimit: ");
-    Serial.println(escPosLimit);
+//    Serial.print("escPosLimit: ");
+//    Serial.println(escPosLimit);
 
     escLast = set_esc(esc, escPosLimit, false, true);
   }
@@ -407,8 +408,8 @@ void act_esc() {
 /* HELPERS */
 
 void message_value(String msg, float val) {
-  Serial.print(msg);
-  Serial.println(val);  
+//  Serial.print(msg);
+//  Serial.println(val);  
 }
 
 float scale(float val, float inMin, float inMax, float outMin, float outMax) {
@@ -467,7 +468,7 @@ float pitch_standardize(float pitch)
 }
 
 void esc_calibrate_step(String msg, int val, int delayMs) {
-  Serial.println(msg);
+//  Serial.println(msg);
   esc.writeMicroseconds(val);
   delay(delayMs);
 }
@@ -479,8 +480,8 @@ void esc_calibrate() {
 }
 
 void printEvent(sensors_event_t* event) {
-  Serial.println();
-  Serial.print(event->type);
+//  Serial.println();
+//  Serial.print(event->type);
   double x = -1000000, y = -1000000 , z = -1000000; //dumb values, easy to spot problem
   if (event->type == SENSOR_TYPE_ACCELEROMETER) {
     x = event->acceleration.x;
@@ -503,12 +504,12 @@ void printEvent(sensors_event_t* event) {
     z = event->gyro.z;
   }
 
-  Serial.print(": x= ");
-  Serial.print(x);
-  Serial.print(" | y= ");
-  Serial.print(y);
-  Serial.print(" | z= ");
-  Serial.println(z);
+//  Serial.print(": x= ");
+//  Serial.print(x);
+//  Serial.print(" | y= ");
+//  Serial.print(y);
+//  Serial.print(" | z= ");
+//  Serial.println(z);
 }
 
 void write_log_data(void) {
@@ -516,7 +517,7 @@ void write_log_data(void) {
   if (cardExists) {
     fd = SD.open(fileName, FILE_WRITE);
     if (fd) {
-      Serial.println("writing to sd");
+//      Serial.println("writing to sd");
       fd.print(micros()); fd.print(",");
       fd.print(currentSegment.name); fd.print(",");
       fd.print(roll); fd.print(",");
@@ -540,10 +541,10 @@ void setup_sd_card(void) {
       alreadyBegan = true;
     }
     delay(250); // Debounce insertion
-    Serial.println("Card detected");
+//    Serial.println("Card detected");
     cardExists = true;
   } else {
-    Serial.println("No card detected");
+//    Serial.println("No card detected");
     cardExists = false;
   }
 }
@@ -551,7 +552,7 @@ void setup_sd_card(void) {
 void update_sd_card(void) {
   if (!digitalRead(cardDetect)) {
     if (cardExists) {
-      Serial.println("Card removed");
+//      Serial.println("Card removed");
       cardExists = false;
     }
   }
