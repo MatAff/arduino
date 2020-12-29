@@ -2,7 +2,6 @@
 #include <chrono>
 #include <iostream>
 #include <cmath>
-#include <queue>
 
 class SnakeControl
 {
@@ -20,15 +19,19 @@ private:
 
     // derive features
     float nrStepsPerSecond = 1000.0 / delayMs;
-    float waveTimeStep = waveSpeed / nrStepsPerSecond; // phase difference for 1 step
+    float waveTimeStep = waveSpeed / nrStepsPerSecond;
     float waveServoStep = wavePhase / nrServos; // phase difference between consecutive servos
-    float stepsBetweenServos = waveServoStep / waveTimeStep;
 
-    // track pos
-    std::deque<float> dirQueue;
-    float servoPhasePosArr[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
-    // servoPhasePosArr[0] = 0.0; // set head value
-  
+    float servoPhasePos1 = 0.0;
+    float servoPhasePos2 = 0.0;
+    float servoPhasePos3 = 0.0;
+    float servoPhasePos4 = 0.0;
+
+    float servoPos1 = 90.0;
+    float servoPos2 = 90.0;
+    float servoPos3 = 90.0;
+    float servoPos4 = 90.0;
+
     // time
     unsigned long SECOND = 1000000; 
     unsigned long setTime = micros();
@@ -53,31 +56,25 @@ public:
     void control_wave() 
     {
         // calculate phase
-        dirQueue.push_back(servoPhasePosArr[0]); // add position to queque
-        servoPhasePosArr[0] = (servoPhasePosArr[0] + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
-        if (servoPhasePosArr[0] > 1.0) {
-          servoPhasePosArr[0] = servoPhasePosArr[0] - 1.0;
+        servoPhasePos1 = (servoPhasePos1 + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
+        if (servoPhasePos1 > 1.0) {
+          servoPhasePos1 = servoPhasePos1 - 1.0;
         }
+        servoPhasePos2 = servoPhasePos1 + waveServoStep;
+        servoPhasePos3 = servoPhasePos2 + waveServoStep;
+        servoPhasePos4 = servoPhasePos3 + waveServoStep;
 
-        // calculate phase subsequent servos
-        for(int i=1; i < nrServos; i++) // skip head
-        {
-            int qSize = dirQueue.size();
-            if (qSize > (i * stepsBetweenServos))
-            {
-                servoPhasePosArr[i] = dirQueue[qSize - (i * stepsBetweenServos)];
-                if (i == 3) 
-                {
-                    dirQueue.pop_front();
-                }
-            }
-        }
-        
         // convert to servo position
-        for (int i=0; i < nrServos; i++)
-        {
-            servoPosArr[i]  = sin(unit_to_rad(servoPhasePosArr[i])) * waveSize + 90.0;
-        }
+        servoPos1 = sin(unit_to_rad(servoPhasePos1)) * waveSize + 90.0;
+        servoPos2 = sin(unit_to_rad(servoPhasePos2)) * waveSize + 90.0;
+        servoPos3 = sin(unit_to_rad(servoPhasePos3)) * waveSize + 90.0;
+        servoPos4 = sin(unit_to_rad(servoPhasePos4)) * waveSize + 90.0;
+
+        // create array and return
+        servoPosArr[0] = servoPos1;
+        servoPosArr[1] = servoPos2;
+        servoPosArr[2] = servoPos3;
+        servoPosArr[3] = servoPos4;
 
     }
 

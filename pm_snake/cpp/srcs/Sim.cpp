@@ -1,5 +1,6 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <queue>
 
 #include "Line.h"
 #include "Plot.h"
@@ -77,6 +78,18 @@ int main(int argc, char ** argv)
     // FPS
     // FPS fps();
     FPS fps = FPS();
+
+    // // queue tries
+    // std::deque<float> dirQueue;
+    // dirQueue.push(1.0);
+    // dirQueue.push(2.0);
+    // std::cout << dirQueue.front() << std::endl;
+    // dirQueue.pop();
+    // std::cout << dirQueue.front() << std::endl;
+    // dirQueue.pop();
+    // std::cout << dirQueue.front() << std::endl;
+    // dirQueue.pop();
+
 
     // main loop
     while (runStatus == true) {
