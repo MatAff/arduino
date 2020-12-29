@@ -27,6 +27,7 @@
 #include <SPI.h> // Not actually used but needed to compile
 #include <Servo.h>
 
+
 //// receiver
 //#include <RH_ASK.h>
 
@@ -54,19 +55,93 @@ int ModeWave = 1;
 //int mode = ModeZero; 
 int mode = ModeWave; 
 
+// global servo positions
+float servoPosGlobal1 = 90.0;
+float servoPosGlobal2 = 90.0;
+float servoPosGlobal3 = 90.0;
+float servoPosGlobal4 = 90.0;
+
 // delay
 float delayMs = 50.0;
 
-// wave
-float waveSpeed = 0.5; // nr of complete cycles per second
-float waveSize = 30.0; // max turning angle
-float wavePhase = 0.5; // part of complete sine wave
-int nrServos = 4.0;
+// control class that can be shared between arduino and cpp
+class SnakeControl
+{
 
-// derive features
-float nrStepsPerSecond = 1000.0 / delayMs;
-float waveTimeStep = waveSpeed / nrStepsPerSecond;
-float waveServoStep = wavePhase / nrServos; // phase difference between consecutive servos
+private:
+
+    // delay
+    float delayMs = 50.0;
+
+    // wave
+    float waveSpeed = 0.5; // nr of complete cycles per second
+    float waveSize = 30.0; // max turning angle
+    float wavePhase = 0.5; // part of complete sine wave
+    int nrServos = 4.0;
+
+    // derive features
+    float nrStepsPerSecond = 1000.0 / delayMs;
+    float waveTimeStep = waveSpeed / nrStepsPerSecond;
+    float waveServoStep = wavePhase / nrServos; // phase difference between consecutive servos
+
+    float servoPhasePos1 = 0.0;
+    float servoPhasePos2 = 0.0;
+    float servoPhasePos3 = 0.0;
+    float servoPhasePos4 = 0.0;
+
+    float servoPos1 = 90.0;
+    float servoPos2 = 90.0;
+    float servoPos3 = 90.0;
+    float servoPos4 = 90.0;
+
+    // time
+    unsigned long SECOND = 1000000; 
+    unsigned long setTime = micros();
+    int prestartDurationSecs = 5;
+    int runDurationSecs = 20;
+
+public:
+
+    float servoPosArr[5];
+
+//    // cpp
+//    long micros()
+//    {
+//        return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+//    }
+
+    float unit_to_rad(float unit)
+    {
+        return unit * 6.28318531;
+    }
+
+    void control_wave() 
+    {
+        // calculate phase
+        servoPhasePos1 = (servoPhasePos1 + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
+        if (servoPhasePos1 > 1.0) {
+          servoPhasePos1 = servoPhasePos1 - 1.0;
+        }
+        servoPhasePos2 = servoPhasePos1 + waveServoStep;
+        servoPhasePos3 = servoPhasePos2 + waveServoStep;
+        servoPhasePos4 = servoPhasePos3 + waveServoStep;
+
+        // convert to servo position
+        servoPos1 = sin(unit_to_rad(servoPhasePos1)) * waveSize + 90.0;
+        servoPos2 = sin(unit_to_rad(servoPhasePos2)) * waveSize + 90.0;
+        servoPos3 = sin(unit_to_rad(servoPhasePos3)) * waveSize + 90.0;
+        servoPos4 = sin(unit_to_rad(servoPhasePos4)) * waveSize + 90.0;
+
+        // create array and return
+        servoPosArr[0] = servoPos1;
+        servoPosArr[1] = servoPos2;
+        servoPosArr[2] = servoPos3;
+        servoPosArr[3] = servoPos4;
+
+    }
+
+};
+
 
 /* INITIALIZE */
 
@@ -76,15 +151,6 @@ Servo servo2;
 Servo servo3;
 Servo servo4;
 
-float servoPhasePos1 = 0.0;
-float servoPhasePos2 = 0.0;
-float servoPhasePos3 = 0.0;
-float servoPhasePos4 = 0.0;
-
-float servoPos1 = 90.0;
-float servoPos2 = 90.0;
-float servoPos3 = 90.0;
-float servoPos4 = 90.0;
 
 // time
 unsigned long SECOND = 1000000; 
@@ -97,6 +163,9 @@ int runDurationSecs = 20;
 
 /* SETUP */
 
+// snake control
+SnakeControl sc = SnakeControl();
+
 void setup()
 {
   Serial.begin(9600);  // Debugging only
@@ -108,15 +177,7 @@ void setup()
   servo3.attach(ServoPin3);
   servo4.attach(ServoPin4);
 
-//  servo1.write(servoPos1);
-//  servo2.write(servoPos2);
-//  servo3.write(servoPos3);
-//  servo4.write(servoPos4);
-    
-//  servo1.write(90);
-//  servo2.write(90);
-//  servo3.write(90);
-//  servo4.write(90);
+
   
   // finalize
   Serial.println("setup complete");
@@ -147,7 +208,12 @@ void loop() {
 
   if (mode==ModeWave) {
 
-    control_wave(true);
+    sc.control_wave();
+    servoPosGlobal1 = sc.servoPosArr[0];
+    servoPosGlobal2 = sc.servoPosArr[1];
+    servoPosGlobal3 = sc.servoPosArr[2];
+    servoPosGlobal4 = sc.servoPosArr[3];
+//    control_wave(true);
 
   }
 
@@ -174,62 +240,18 @@ void loop() {
 
 void control_zero() 
 {
-  servoPos1 = 90.0;
-  servoPos2 = 90.0;
-  servoPos3 = 90.0;
-  servoPos4 = 90.0;
-}
-
-void control_wave(bool wordy) 
-{
-  // calculate phase
-  servoPhasePos1 = (servoPhasePos1 + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
-  if (servoPhasePos1 > 1.0) {
-    servoPhasePos1 = servoPhasePos1 - 1.0;
-  }
-  servoPhasePos2 = servoPhasePos1 + waveServoStep;
-  servoPhasePos3 = servoPhasePos2 + waveServoStep;
-  servoPhasePos4 = servoPhasePos3 + waveServoStep;
-
-  // convert to servo position
-  servoPos1 = sin(unit_to_rad(servoPhasePos1)) * waveSize + 90.0;
-  servoPos2 = sin(unit_to_rad(servoPhasePos2)) * waveSize + 90.0;
-  servoPos3 = sin(unit_to_rad(servoPhasePos3)) * waveSize + 90.0;
-  servoPos4 = sin(unit_to_rad(servoPhasePos4)) * waveSize + 90.0;
-
-  // debug
-  if (wordy) {
-
-    String phaseStr = "Phase positions: ";
-    phaseStr += String(servoPhasePos1, 2) + "; ";
-    phaseStr += String(servoPhasePos2, 2) + "; ";
-    phaseStr += String(servoPhasePos3, 2) + "; ";
-    phaseStr += String(servoPhasePos4, 2) + "; ";
-
-    String servoStr = "Servo positions: ";
-    servoStr += String(servoPos1, 2) + "; ";
-    servoStr += String(servoPos2, 2) + "; ";
-    servoStr += String(servoPos3, 2) + "; ";
-    servoStr += String(servoPos4, 2) + "; ";
-
-//    Serial.println(phaseStr);
-    Serial.println(servoStr);
-  }
+  servoPosGlobal1 = 90.0;
+  servoPosGlobal2 = 90.0;
+  servoPosGlobal3 = 90.0;
+  servoPosGlobal4 = 90.0;
 }
 
 /* ACT */
 
 void act_servos() 
 {
-  servo1.write(servoPos1 + 0.0);
-  servo2.write(servoPos2 + 0.0);
-  servo3.write(servoPos3 + 0.0);
-  servo4.write(servoPos4 + 0.0);
-}
-
-/* HELPERS */
-
-float unit_to_rad(float unit)
-{
-  return unit * 6.28318531;
+  servo1.write(servoPosGlobal1 + 0.0);
+  servo2.write(servoPosGlobal2 + 0.0);
+  servo3.write(servoPosGlobal3 + 0.0);
+  servo4.write(servoPosGlobal4 + 0.0);
 }
