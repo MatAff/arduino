@@ -1,13 +1,24 @@
 
+// uses: https://github.com/SMFSW/Queue
+
 #include <chrono>
 #include <iostream>
 #include <cmath>
 #include <queue>
 
+#include "cppQueue.h" // arduino alternative for deque
+
+#define IMPLEMENTATION FIFO
+
+// control class that can be shared between arduino and cpp
 class SnakeControl
 {
 
 private:
+
+    typedef struct dirRec {
+      float dir;
+    } Rec;
 
     // delay
     float delayMs = 50.0;
@@ -25,7 +36,7 @@ private:
     float stepsBetweenServos = waveServoStep / waveTimeStep;
 
     // track pos
-    std::deque<float> dirQueue;
+    cppQueue dirQueue = cppQueue(sizeof(Rec), stepsBetweenServos * nrServos, IMPLEMENTATION); 
     float servoPhasePosArr[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
     // servoPhasePosArr[0] = 0.0; // set head value
   
@@ -34,16 +45,17 @@ private:
     unsigned long setTime = micros();
     int prestartDurationSecs = 5;
     int runDurationSecs = 20;
+    Rec r;
 
 public:
 
     float servoPosArr[5];
 
     // cpp
-    long micros()
-    {
-        return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    }
+   long micros()
+   {
+       return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+   }
 
     float unit_to_rad(float unit)
     {
@@ -53,7 +65,8 @@ public:
     void control_wave() 
     {
         // calculate phase
-        dirQueue.push_back(servoPhasePosArr[0]); // add position to queque
+        r = { servoPhasePosArr[0] };
+        dirQueue.push(&r); // add position record to queque
         servoPhasePosArr[0] = (servoPhasePosArr[0] + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
         if (servoPhasePosArr[0] > 1.0) {
           servoPhasePosArr[0] = servoPhasePosArr[0] - 1.0;
@@ -62,13 +75,18 @@ public:
         // calculate phase subsequent servos
         for(int i=1; i < nrServos; i++) // skip head
         {
-            int qSize = dirQueue.size();
+            int qSize = dirQueue.getCount();
             if (qSize > (i * stepsBetweenServos))
             {
-                servoPhasePosArr[i] = dirQueue[qSize - (i * stepsBetweenServos)];
+                int pos = qSize - (i * stepsBetweenServos);
+                Rec r;
+                dirQueue.peekIdx(&r, pos);
+                servoPhasePosArr[i] = r.dir;
+                
                 if (i == 3) 
                 {
-                    dirQueue.pop_front();
+                    Rec r;
+                    dirQueue.pop(&r); // r is unused, sole purpose of pop is to limit queue size
                 }
             }
         }
@@ -76,27 +94,9 @@ public:
         // convert to servo position
         for (int i=0; i < nrServos; i++)
         {
-            servoPosArr[i]  = sin(unit_to_rad(servoPhasePosArr[i])) * waveSize + 90.0;
+            servoPosArr[i] = sin(unit_to_rad(servoPhasePosArr[i])) * waveSize + 90.0;
         }
 
     }
 
 };
-
-    //   // debug
-    //   if (wordy) {
-
-    //     String phaseStr = "Phase positions: ";
-    //     phaseStr += String(servoPhasePos1, 2) + "; ";
-    //     phaseStr += String(servoPhasePos2, 2) + "; ";
-    //     phaseStr += String(servoPhasePos3, 2) + "; ";
-    //     phaseStr += String(servoPhasePos4, 2) + "; ";
-
-    //     String servoStr = "Servo positions: ";
-    //     servoStr += String(servoPos1, 2) + "; ";
-    //     servoStr += String(servoPos2, 2) + "; ";
-    //     servoStr += String(servoPos3, 2) + "; ";
-    //     servoStr += String(servoPos4, 2) + "; ";
-
-    // //    Serial.println(phaseStr);
-    //     Serial.println(servoStr);

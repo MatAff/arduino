@@ -10,7 +10,7 @@
 
 Plot::Plot(cv::Size size) {
     Plot::size = size;
-    Plot::scale = 0.1;
+    Plot::scale = 0.5;
     Plot::pos = cv::Point(0, 0);
     Plot::dirDeg = 0.0;
 }
