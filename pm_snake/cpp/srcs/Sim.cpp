@@ -2,6 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <queue>
 
+#include "cppQueue.h" // arduino alternative for deque
 #include "Line.h"
 #include "Plot.h"
 #include "Segment.h"
@@ -19,7 +20,6 @@
 #define KEY_PAGE_UP 85
 #define KEY_PAGE_DOWN 86
 // #define KEY_
-
 
 cv::Size size(640, 480);
 cv::Mat frame(size, CV_8UC3); // TODO: this should be owned by plot
@@ -89,6 +89,8 @@ int main(int argc, char ** argv)
     // dirQueue.pop();
     // std::cout << dirQueue.front() << std::endl;
     // dirQueue.pop();
+
+    
 
 
     // main loop
