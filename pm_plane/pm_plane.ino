@@ -9,8 +9,8 @@
 */
 
 /* REFERENCE
- * pins: https://cdn.sparkfun.com/assets/9/c/3/c/4/523a1765757b7f5c6e8b4567.png
- */
+   pins: https://cdn.sparkfun.com/assets/9/c/3/c/4/523a1765757b7f5c6e8b4567.png
+*/
 
 /* DESIGN SPEC
    adjust control surfaces to maintain roll target (defaults to 0.0)
@@ -70,8 +70,8 @@ class FPS {
         this->fps = float(count) / deltaTime * this->SECOND;
         this->count = 0.0;
         this->lastUpdateTime = currentTime;
-//        Serial.print("fps: ");
-//        Serial.println(this->fps);
+        //        Serial.print("fps: ");
+        //        Serial.println(this->fps);
       } else {
         return this->fps;
       }
@@ -163,9 +163,9 @@ float segmentEndTime = 0.0;
 void setup()
 {
   Serial.begin(9600);  // Debugging only
-//  Serial.begin(57600);  // Debugging only
-//  Serial.println("Initializing");
-//  while (!Serial); // don't run if not plugged in via USB
+  //  Serial.begin(57600);  // Debugging only
+  //  Serial.println("Initializing");
+  //  while (!Serial); // don't run if not plugged in via USB
 
   // servos
   servoR.attach(ServoPinR);
@@ -182,19 +182,19 @@ void setup()
 
   // receiver
   if (!driver.init()) {
-//    Serial.println("init failed - receiver");
+    //    Serial.println("init failed - receiver");
     while (1); // don't run if receiver not detected
   }
 
   // imu
   if (!bno.begin()) {
-//    Serial.print("No BNO055 detected");
+    //    Serial.print("No BNO055 detected");
     while (1); // don't run if imu not detected
   }
   delay(1000);
 
   // finalize
-//  Serial.println("setup complete");
+  //  Serial.println("setup complete");
 
   // set kill time
   // escEndTime = micros() + (escDurSecs * SECOND);
@@ -228,7 +228,7 @@ void loop() {
   if (mode == CONTROLLED_JOURNEY) {
 
     control_journey(true);
-    
+
     // prop
     control_prop(sentCode);
 
@@ -273,11 +273,11 @@ void input_roll_pitch(bool wordy = false)
     pitch = pitch_standardize(orientationData.orientation.y);
 
     if (wordy) {
-//      printEvent(&orientationData);
-//      Serial.print("Roll: ");
-//      Serial.println(roll);
-//      Serial.print("Pitch: ");
-//      Serial.println(pitch);
+      //      printEvent(&orientationData);
+      //      Serial.print("Roll: ");
+      //      Serial.println(roll);
+      //      Serial.print("Pitch: ");
+      //      Serial.println(pitch);
     }
   }
 }
@@ -292,8 +292,8 @@ int input_receiver()
 
   if (driver.recv(buf, &buflen)) {
     sentCode = String((char*)buf).toInt();  // update sent code
-//    Serial.print("Message: ");
-//    Serial.println(sentCode);
+    //    Serial.print("Message: ");
+    //    Serial.println(sentCode);
   }
 
   return sentCode;
@@ -310,18 +310,18 @@ void control_journey(bool wordy = false) {
       currentSegment = journey[segmentIndex];
       segmentEndTime = micros() + (currentSegment.durationSecs * SECOND);
       if (wordy) {
-//        Serial.print("Starting segment ");
-//        Serial.print(segmentIndex);
-//        Serial.print("/");
-//        Serial.print(lastSegmentIndex);
-//        Serial.print(" ");
-//        Serial.println(currentSegment.name);
+        //        Serial.print("Starting segment ");
+        //        Serial.print(segmentIndex);
+        //        Serial.print("/");
+        //        Serial.print(lastSegmentIndex);
+        //        Serial.print(" ");
+        //        Serial.println(currentSegment.name);
       }
     } else {
       currentSegment = land;
       segmentEndTime = (micros() + 3600) * SECOND;
     }
-    
+
     pitchTarget = currentSegment.targetPitch;
     rollTarget = currentSegment.targetRoll;
     propSpeed = currentSegment.propSpeed;
@@ -356,8 +356,8 @@ bool control_prop(int sentCode)
   // update end esc end time
   if (sentCode == 1) {
     escEndTime = micros() + (escDurSecs * SECOND);
-//    Serial.println("setting");
-//    Serial.println(escEndTime);
+    //    Serial.println("setting");
+    //    Serial.println(escEndTime);
   }
 
   // set esc target - update global
@@ -398,8 +398,8 @@ void act_esc() {
     //    float escPosLimit = escLast + limit(escPos - escLast, escStepSize, -escStepSize);
     float escPosLimit = escPos;
 
-//    Serial.print("escPosLimit: ");
-//    Serial.println(escPosLimit);
+    //    Serial.print("escPosLimit: ");
+    //    Serial.println(escPosLimit);
 
     escLast = set_esc(esc, escPosLimit, false, true);
   }
@@ -408,12 +408,12 @@ void act_esc() {
 /* HELPERS */
 
 void message_value(String msg, float val) {
-//  Serial.print(msg);
-//  Serial.println(val);  
+  //  Serial.print(msg);
+  //  Serial.println(val);
 }
 
 float scale(float val, float inMin, float inMax, float outMin, float outMax) {
-  return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;  
+  return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
 }
 
 float limit(float val, float minVal, float maxVal)
@@ -435,7 +435,9 @@ float set_servo(Servo servo, float pos, bool do_invert = false, bool wordy = fal
   }
   servo.write(posScaled);
 
-  if (wordy) { message_value("Setting servo position: ", posScaled); }
+  if (wordy) {
+    message_value("Setting servo position: ", posScaled);
+  }
 
   delay(15);  // TODO: move delay to overall loop
 
@@ -450,7 +452,9 @@ float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false) {
   posScaled = limit(posScaled, escMin, escMax);
   esc.writeMicroseconds(posScaled);
 
-  if (wordy) { message_value("Setting esc position: ", posScaled); }
+  if (wordy) {
+    message_value("Setting esc position: ", posScaled);
+  }
 
   delay(15); // TODO: move to overall loop
 
@@ -468,7 +472,7 @@ float pitch_standardize(float pitch)
 }
 
 void esc_calibrate_step(String msg, int val, int delayMs) {
-//  Serial.println(msg);
+  //  Serial.println(msg);
   esc.writeMicroseconds(val);
   delay(delayMs);
 }
@@ -480,8 +484,8 @@ void esc_calibrate() {
 }
 
 void printEvent(sensors_event_t* event) {
-//  Serial.println();
-//  Serial.print(event->type);
+  //  Serial.println();
+  //  Serial.print(event->type);
   double x = -1000000, y = -1000000 , z = -1000000; //dumb values, easy to spot problem
   if (event->type == SENSOR_TYPE_ACCELEROMETER) {
     x = event->acceleration.x;
@@ -504,12 +508,12 @@ void printEvent(sensors_event_t* event) {
     z = event->gyro.z;
   }
 
-//  Serial.print(": x= ");
-//  Serial.print(x);
-//  Serial.print(" | y= ");
-//  Serial.print(y);
-//  Serial.print(" | z= ");
-//  Serial.println(z);
+  //  Serial.print(": x= ");
+  //  Serial.print(x);
+  //  Serial.print(" | y= ");
+  //  Serial.print(y);
+  //  Serial.print(" | z= ");
+  //  Serial.println(z);
 }
 
 void write_log_data(void) {
@@ -517,7 +521,7 @@ void write_log_data(void) {
   if (cardExists) {
     fd = SD.open(fileName, FILE_WRITE);
     if (fd) {
-//      Serial.println("writing to sd");
+      //      Serial.println("writing to sd");
       fd.print(micros()); fd.print(",");
       fd.print(currentSegment.name); fd.print(",");
       fd.print(roll); fd.print(",");
@@ -527,7 +531,7 @@ void write_log_data(void) {
       fd.print(servoPosTail); fd.print(",");
       fd.print(escPos);
       fd.print("\n");
-      
+
       fd.flush();
       fd.close();
     }
@@ -541,10 +545,10 @@ void setup_sd_card(void) {
       alreadyBegan = true;
     }
     delay(250); // Debounce insertion
-//    Serial.println("Card detected");
+    //    Serial.println("Card detected");
     cardExists = true;
   } else {
-//    Serial.println("No card detected");
+    //    Serial.println("No card detected");
     cardExists = false;
   }
 }
@@ -552,7 +556,7 @@ void setup_sd_card(void) {
 void update_sd_card(void) {
   if (!digitalRead(cardDetect)) {
     if (cardExists) {
-//      Serial.println("Card removed");
+      //      Serial.println("Card removed");
       cardExists = false;
     }
   }

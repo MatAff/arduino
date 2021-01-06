@@ -2,13 +2,13 @@ HDR_DIR = ./hdrs
 SRC_DIR = ./srcs
 OBJ_DIR = ./objs
 
-IGNORE := $(SRC_DIR)/Sim.cpp
+IGNORE := $(SRC_DIR)/Sim.cpp $(SRC_DIR)/TestCPPQueue.cpp
 
 CC_FILES := $(filter-out $(IGNORE), $(wildcard $(SRC_DIR)/*.cpp))
 
 OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(CC_FILES))
 
-TARGETS = Sim
+TARGETS = Sim TestCPPQueue
 DEFAULT_TGT = Sim
 
 CC=g++
@@ -20,6 +20,9 @@ INC=-I$(HDR_DIR) $(CVINC)
 all: $(DEFAULT_TGT)
 
 Sim: $(OBJ_FILES)
+	$(CC) $(CFLAGS) $(INC) $(SRC_DIR)/$@.cpp -o $@ $^ $(CVLIBS)
+
+TestCPPQueue: $(OBJ_FILES)
 	$(CC) $(CFLAGS) $(INC) $(SRC_DIR)/$@.cpp -o $@ $^ $(CVLIBS)
 
 $(OBJ_FILES): $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(CVLIBS)
