@@ -25,7 +25,7 @@ private:
 
     // wave
     float waveSpeed = 0.5; // nr of complete cycles per second
-    float waveSize = 30.0; // max turning angle
+    float waveSize = 40.0; // max turning angle
     float wavePhase = 0.5; // part of complete sine wave
     int nrServos = 4.0;
 
@@ -68,9 +68,9 @@ public:
         r = { servoPhasePosArr[0] };
         dirQueue.push(&r); // add position record to queque
         servoPhasePosArr[0] = (servoPhasePosArr[0] + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
-        if (servoPhasePosArr[0] > 1.0) {
-          servoPhasePosArr[0] = servoPhasePosArr[0] - 1.0;
-        }
+        // if (servoPhasePosArr[0] > 1.0) {
+        //   servoPhasePosArr[0] = servoPhasePosArr[0] - 1.0;
+        // }
 
         // calculate phase subsequent servos
         for(int i=1; i < nrServos; i++) // skip head
@@ -91,10 +91,23 @@ public:
             }
         }
         
+        // debug
+        std::cout << servoPhasePosArr[0] << " ";
+        std::cout << servoPhasePosArr[1] << " ";
+        std::cout << servoPhasePosArr[2] << " ";
+        std::cout << servoPhasePosArr[3] << " ";
+        std::cout << std::endl;
+
         // convert to servo position
         for (int i=0; i < nrServos; i++)
         {
-            servoPosArr[i] = sin(unit_to_rad(servoPhasePosArr[i])) * waveSize + 90.0;
+            float rad = unit_to_rad(servoPhasePosArr[i]);
+            // float deg = sin(rad);
+            // float deg = sin(rad) + sin(rad * 1.3);
+            // float deg = sin(rad/3)/2 + sin(rad);
+            float deg = sin(rad) + sin(2*rad)/2;
+            // float deg = sin(rad) + sin(3*rad)/3 + sin(5*rad)/5 + sin(7*rad)/7 + sin(9*rad)/9;
+            servoPosArr[i] = deg * waveSize + 90.0;
         }
 
     }

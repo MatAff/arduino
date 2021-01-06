@@ -9,6 +9,7 @@
 
 #include "FPS.cpp"
 #include "SnakeControl.cpp"
+// #include "SnakeControlBasic.cpp"
 
 #define KEY_ESC 27
 #define KEY_I 105
@@ -73,6 +74,7 @@ int main(int argc, char ** argv)
 
     // snake control
     SnakeControl sc = SnakeControl();
+    // SnakeControl sc = SnakeControlBasic();
     // SnakeControl sc();
 
     // FPS
@@ -128,6 +130,14 @@ int main(int argc, char ** argv)
 
         // fps
         fps.get_fps();
+
+        // // debug
+        // std::cout << sc.servoPosArr[0] << " ";
+        // std::cout << sc.servoPosArr[1] << " ";
+        // std::cout << sc.servoPosArr[2] << " ";
+        // std::cout << sc.servoPosArr[3] << " ";
+        // std::cout << std::endl;
+
     }
 
 }
