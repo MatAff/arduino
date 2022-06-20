@@ -28,7 +28,7 @@
    add tail control based on pitch >> Done
 */
 
-#include <RH_ASK.h>
+//#include <RH_ASK.h>
 #include <SPI.h> // Not actually used but needed to compile
 #include <Servo.h>
 #include <SD.h>
@@ -45,7 +45,7 @@
 #define ServoPinTail 4
 #define EscPin 9
 
-char fileName[] = "201213aa.txt"; // SD library only supports up to 8.3 names
+char fileName[] = "220619a.txt"; // SD library only supports up to 8.3 names
 File fd;
 const uint8_t chipSelect = 5; // 8;
 const uint8_t cardDetect = 7; // 9;
@@ -60,7 +60,7 @@ class FPS {
     long lastUpdateTime = micros();
     long SECOND = 1000000;
   public:
-    get_fps() {
+    float get_fps() {
       this->count += 1;
       long currentTime = micros();
       long deltaTime = currentTime - lastUpdateTime;
@@ -129,7 +129,7 @@ float rollTarget = 0.0;
 float pitchTarget = 0.0;
 
 // receiver
-RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
+//RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
 
 // IMU globals
 double roll = 0;
@@ -144,15 +144,16 @@ unsigned long startTime = micros();
 // fps
 FPS fps;
 
-// segment
+// segment - duration, bank, lift, engine
 Segment takeoff = {"takeoff", 4.0, 0.0, 25.0, 1.0};
-Segment cruise = {"cruise", 2.0, 0.0, 15.0, 1.0};
+Segment cruise = {"cruise", 5.0, 0.0, 0.0, 1.0};
 Segment left = {"left", 3.0, 15.0, 0.0, 0.25};
 Segment right = {"right", 3.0, -15.0, 0.0, 0.25};
 Segment land = {"land", 3.0, 0.0, -20.0, -1.0};
 
 // journey
-Segment journey[] = {takeoff, cruise, land};
+//Segment journey[] = {takeoff, cruise, land};
+Segment journey[] = {cruise, land};
 int segmentIndex = -1;
 int lastSegmentIndex = 3 - 1;
 Segment currentSegment;
@@ -163,11 +164,12 @@ float segmentEndTime = 0.0;
 void setup()
 {
   Serial.begin(9600);  // Debugging only
-  //  Serial.begin(57600);  // Debugging only
-  //  Serial.println("Initializing");
+//    Serial.begin(57600);  // Debugging only
+    Serial.println("Initializing");
   //  while (!Serial); // don't run if not plugged in via USB
 
   // servos
+  Serial.println("Setting up servos");
   servoR.attach(ServoPinR);
   servoL.attach(ServoPinL);
   servoTail.attach(ServoPinTail);
@@ -176,17 +178,19 @@ void setup()
   set_servo(servoR, servoPosTail);
 
   // esc
+  Serial.println("Setting up esc");
   esc.attach(EscPin);
   set_servo(esc, escPos); // TODO: drop, this shouldn't do anything
   esc_calibrate();
 
-  // receiver
-  if (!driver.init()) {
-    //    Serial.println("init failed - receiver");
-    while (1); // don't run if receiver not detected
-  }
+//  // receiver
+//  if (!driver.init()) {
+//    //    Serial.println("init failed - receiver");
+//    while (1); // don't run if receiver not detected
+//  }
 
   // imu
+  Serial.println("Setting up imu");
   if (!bno.begin()) {
     //    Serial.print("No BNO055 detected");
     while (1); // don't run if imu not detected
@@ -200,9 +204,11 @@ void setup()
   // escEndTime = micros() + (escDurSecs * SECOND);
 
   // fps
+  Serial.println("Setting up fps");
   fps = FPS();
 
   // logging
+  Serial.println("Setting up sd card");
   pinMode(cardDetect, INPUT);
   setup_sd_card();
 }
@@ -211,13 +217,15 @@ void setup()
 
 void loop() {
 
+  Serial.println("testt");
+
   /* input section */
 
   // imu
   input_roll_pitch(false);
 
   // receiver
-  int sentCode = input_receiver();
+//  int sentCode = input_receiver();
 
   // fps
   fps.get_fps();
@@ -230,7 +238,7 @@ void loop() {
     control_journey(true);
 
     // prop
-    control_prop(sentCode);
+    control_prop(); // sentCode);
 
     // adjust desired pitch based on escPos
     if (propSpeed < 0.0) {
@@ -257,7 +265,7 @@ void loop() {
 
 /* INPUT */
 
-void input_roll_pitch(bool wordy = false)
+void input_roll_pitch(bool wordy)
 {
   // set global roll and pitch
   sensors_event_t orientationData, linearAccelData;
@@ -282,23 +290,23 @@ void input_roll_pitch(bool wordy = false)
   }
 }
 
-int input_receiver()
-{
-  // return int of message received or zero
-  uint8_t buf[50];
-  uint8_t buflen = sizeof(buf);
-  memset(buf, 0, buflen);
-  int sentCode = 0;
-
-  if (driver.recv(buf, &buflen)) {
-    sentCode = String((char*)buf).toInt();  // update sent code
-    //    Serial.print("Message: ");
-    //    Serial.println(sentCode);
-  }
-
-  return sentCode;
-
-}
+//int input_receiver()
+//{
+//  // return int of message received or zero
+//  uint8_t buf[50];
+//  uint8_t buflen = sizeof(buf);
+//  memset(buf, 0, buflen);
+//  int sentCode = 0;
+//
+//  if (driver.recv(buf, &buflen)) {
+//    sentCode = String((char*)buf).toInt();  // update sent code
+//    //    Serial.print("Message: ");
+//    //    Serial.println(sentCode);
+//  }
+//
+//  return sentCode;
+//
+//}
 
 /* CONTROL */
 
@@ -350,15 +358,15 @@ void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
 }
 
 // DEB - sets escPos
-bool control_prop(int sentCode)
+bool control_prop() // int sentCode)
 {
 
-  // update end esc end time
-  if (sentCode == 1) {
-    escEndTime = micros() + (escDurSecs * SECOND);
-    //    Serial.println("setting");
-    //    Serial.println(escEndTime);
-  }
+//  // update end esc end time
+//  if (sentCode == 1) {
+//    escEndTime = micros() + (escDurSecs * SECOND);
+//    //    Serial.println("setting");
+//    //    Serial.println(escEndTime);
+//  }
 
   // set esc target - update global
   if (pitch > -20.0) {
@@ -517,11 +525,13 @@ void printEvent(sensors_event_t* event) {
 }
 
 void write_log_data(void) {
-
+  Serial.println(cardExists);
   if (cardExists) {
     fd = SD.open(fileName, FILE_WRITE);
+    Serial.println(fd);  // 0 = False
     if (fd) {
-      //      Serial.println("writing to sd");
+//    if (true) {
+      Serial.println("writing to sd");
       fd.print(micros()); fd.print(",");
       fd.print(currentSegment.name); fd.print(",");
       fd.print(roll); fd.print(",");
@@ -540,15 +550,16 @@ void write_log_data(void) {
 
 void setup_sd_card(void) {
   if (digitalRead(cardDetect)) {
-    if (!SD.begin(chipSelect) && !alreadyBegan) { // begin uses half-speed...
+    if (!SD.begin(chipSelect) && !alreadyBegan) {
+      // begin uses half-speed...
     } else {
       alreadyBegan = true;
     }
     delay(250); // Debounce insertion
-    //    Serial.println("Card detected");
+    Serial.println("Card detected");
     cardExists = true;
   } else {
-    //    Serial.println("No card detected");
+    Serial.println("No card detected");
     cardExists = false;
   }
 }
@@ -556,7 +567,7 @@ void setup_sd_card(void) {
 void update_sd_card(void) {
   if (!digitalRead(cardDetect)) {
     if (cardExists) {
-      //      Serial.println("Card removed");
+      Serial.println("Card removed");
       cardExists = false;
     }
   }
