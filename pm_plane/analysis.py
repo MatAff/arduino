@@ -21,7 +21,7 @@ split_lines = []
 for e in lines:
     split_line = e.split(",")
     # correct number of columns and every column has data
-    if len(split_line) == len(headers) and all([len(e)>0 for e in split_line]):
+    if len(split_line) == len(headers) and all([len(e) > 0 for e in split_line]):
         split_lines.append(split_line)
 
 #%% break into distinct flights
@@ -47,22 +47,20 @@ for i, e in enumerate(split_lines):
 #     flight = flight[:last_change]
 
 #%% build dataframe for each flight
-dfs = []
-for flight in flights:
+def flight_to_df(flight):
     df = pd.DataFrame(flight, columns=headers)
 
     df['ts'] = df['ts'].astype('int')
     for col in df.columns[2:]:
         df[col] = df[col].astype('float')
 
-    df = df.reset_index()
-
-    def rescale(col_name, from_range=None, to_range=[-1, 1]):
+    def rescale(col_name, from_range=None, to_range=(-1, 1)):
         if from_range is None:
             from_range = [min(df[col_name]), max(df[col_name])]
         df[col_name + "_scaled"] = np.interp(df[col_name], from_range, to_range)
 
     rescale("ts")
+    df["ts"] = (df["ts"] - df["ts"].min()) / 10**6
     rescale("roll", [-45, 45])
     rescale("pitch", [-45, 45])
     rescale("servoPosTail", [-1, 1])
@@ -70,16 +68,26 @@ for flight in flights:
     rescale("servoPosRight", [-1, 1])
     rescale("esc", [-1, 1], [0, 1])
 
-    dfs.append(df)
+    return df
+
+
+flight_dfs = [flight_to_df(flight) for flight in flights]
+
+
+def plot_flight(flight_df):
+    sens_cols = ["roll_scaled", "pitch_scaled"]
+    act_cols = ["servoPosTail_scaled", "servoPosLeft_scaled", "servoPosRight_scaled"]
+    fig = px.line(flight_df, x="ts", y=[*sens_cols, *act_cols])
+    fig.show()
+
 
 #%% view all flights
-for flight_num, df in enumerate(dfs):
+for flight_num, flight_df in enumerate(flight_dfs):
     print(f"Flight number: {flight_num}")
-    fig = px.line(df, x="index", y=["ts_scaled", "roll_scaled", "pitch_scaled"])
-    fig.show()
+    plot_flight(flight_df)
+
 #%% analyze specific flight
 flight_num = 4
+plot_flight(flight_dfs[flight_num])
 
-px.line(dfs[flight_num], x="index", y=["ts_scaled", "roll_scaled", "pitch_scaled", "servoPosTail_scaled", "servoPosLeft_scaled", "servoPosRight_scaled"])
-
-#%% 
+#%%
