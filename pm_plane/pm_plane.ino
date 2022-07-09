@@ -481,8 +481,6 @@ void esc_calibrate() {
 }
 
 void printEvent(sensors_event_t* event) {
-  //  Serial.println();
-  //  Serial.print(event->type);
   double x = -1000000, y = -1000000 , z = -1000000; //dumb values, easy to spot problem
   if (event->type == SENSOR_TYPE_ACCELEROMETER) {
     x = event->acceleration.x;
@@ -519,7 +517,6 @@ void write_log_data(void) {
     fd = SD.open(fileName, FILE_WRITE);
     Serial.println(fd);  // 0 = False
     if (fd) {
-//    if (true) {
       Serial.println("writing to sd");
       fd.print(micros()); fd.print(",");
       fd.print(currentSegment.name); fd.print(",");
@@ -561,72 +558,3 @@ void update_sd_card(void) {
     }
   }
 }
-
-// UNUSED CODE BELOW
-
-//float scale_unit(float val, float minVal, float maxVal, bool limit, bool invert)
-//{
-//  /* scale val from unit range [-1, 1] to [minVal, maxVal] */
-//
-//  val = (val + 1.0) / 2.0 * (maxVal - minVal) + minVal;
-//
-//  if (limit) {
-//    val = min(max(val, minVal), maxVal);
-//  }
-//
-//  if (invert) {
-//    val = maxVal - val + minVal;
-//  }
-//
-//  return val;
-//}
-
-
-//// translate x or y stick values to -1 to 1 range
-//float stick_trans(float xy)
-//{
-//  return xy * 2 -1;
-//}
-//
-//// round to zero if value is near zero
-//float stick_near_zero(float xy, float thresh = 0.05)
-//{
-//  if (abs(xy - 0.0) < thresh) {
-//    return 0.0;
-//  } else {
-//    return xy;
-//  }
-//}
-//
-//float stick_offset_x(float x)
-//{
-//  return max(x - 0.02, 0.0);
-//}
-//
-
-//class Segment {
-//  private:
-//    String name;
-//    float durationSecs;
-//    float targetRoll;
-//    float targetPitch;
-//    float propSpeed;
-//  public:
-//    Segment(String name, float durationSecs, float targetRoll, float targetPitch, float propSpeed) {
-//      this->name = name;
-//      this->durationSecs = durationSecs;
-//      this->targetRoll = targetRoll;
-//      this->targetPitch = targetPitch;
-//      this->propSpeed = propSpeed;
-//      init();
-//    }
-//
-//    void init() { }
-//
-//    String getName() { return this->name; }
-//    float getDurationSecs() { return this->durationSecs; }
-//    float getTargetRoll() { return this->targetRoll; }
-//    float getTargetPitch() { return this->targetPitch; }
-//    float getPropSpeed() { return this->propSpeed; }
-//
-//};
