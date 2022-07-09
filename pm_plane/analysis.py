@@ -1,9 +1,11 @@
 #%% dependencies
 import re
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
-import numpy as np
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 
 filename = "220619A.TXT"
 headers = ["ts", "segment", "roll", "pitch", "servoPosLeft", "servoPosRight", "servoPosTail", "esc"]
@@ -61,17 +63,31 @@ def flight_to_df(flight):
 
     rescale("ts")
     df["ts"] = (df["ts"] - df["ts"].min()) / 10**6
-    rescale("roll", [-45, 45])
-    rescale("pitch", [-45, 45])
-    rescale("servoPosTail", [-1, 1])
-    rescale("servoPosLeft", [-1, 1])
-    rescale("servoPosRight", [-1, 1])
+    rescale("roll", [-45, 45], [-45, 45])
+    rescale("pitch", [-45, 45], [-45, 45])
+    rescale("servoPosTail", [-1, 1], [-45, 45])
+    rescale("servoPosLeft", [-1, 1], [-45, 45])
+    rescale("servoPosRight", [-1, 1], [-45, 45])
     rescale("esc", [-1, 1], [0, 1])
 
     return df
 
 
-flight_dfs = [flight_to_df(flight) for flight in flights]
+def trim_end(flight_df):
+    """Trims the end of the data frame based on pitch sd"""
+    flight_df["pitch_scaled_sd"] = flight_df["pitch_scaled"].rolling(20).std()
+
+    # Fill first points with max value
+    max_sd = flight_df["pitch_scaled_sd"].max(skipna=True)
+    flight_df["pitch_scaled_sd"] = flight_df["pitch_scaled_sd"].fillna(max_sd)
+    flight_df["has_pitch_sd"] = flight_df["pitch_scaled_sd"] > 0.001
+
+    # All point have sd
+    if all(flight_df["has_pitch_sd"]):
+        return flight_df
+
+    end_pos = flight_df["has_pitch_sd"].argmin()
+    return flight_df.iloc[:end_pos]
 
 
 def plot_flight(flight_df):
@@ -81,13 +97,31 @@ def plot_flight(flight_df):
     fig.show()
 
 
+def plot_flight_split(flight_df):
+    fig = make_subplots(rows=2, cols=1)
+
+    fig.add_trace(go.Line(name="pitch", x=flight_df["ts"], y=flight_df["pitch_scaled"]), row=1, col=1)
+    fig.add_trace(go.Line(name="tail servo", x=flight_df["ts"], y=flight_df["servoPosTail_scaled"]), row=1, col=1)
+
+    fig.add_trace(go.Line(name="roll", x=flight_df["ts"], y=flight_df["roll_scaled"]), row=2, col=1)
+    fig.add_trace(go.Line(name="roll servo", x=flight_df["ts"], y=flight_df["servoPosLeft_scaled"]), row=2, col=1)
+
+    fig.update_layout(height=600, width=800, title_text="Pitch and Roll")
+    fig.show()
+
+
 #%% view all flights
+
+flight_dfs = [flight_to_df(flight) for flight in flights]
+flight_dfs = [trim_end(flight_df) for flight_df in flight_dfs]
+
+
 for flight_num, flight_df in enumerate(flight_dfs):
     print(f"Flight number: {flight_num}")
-    plot_flight(flight_df)
+    plot_flight_split(flight_df)
 
-#%% analyze specific flight
-flight_num = 4
-plot_flight(flight_dfs[flight_num])
+# #%% analyze specific flight
+# flight_num = 4
+# plot_flight_split(flight_dfs[flight_num])
 
-#%%
+# %%
