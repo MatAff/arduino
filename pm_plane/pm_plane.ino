@@ -46,6 +46,7 @@
 #define ServoPinTail 4
 #define EscPin 9
 
+// sd globals
 char fileName[] = "220716a.txt"; // SD library only supports up to 8.3 names
 File fd;
 const uint8_t chipSelect = 5; // 8;
@@ -87,7 +88,7 @@ struct Segment {
   float propSpeed;
 };
 
-// header - predeclare function to allow order change
+// header - predeclare functions to allow order change
 extern float set_servo(Servo servo, float pos, bool do_invert = false, bool wordy = false);
 extern void input_roll_pitch(bool wordy = false);
 extern void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0);
@@ -158,7 +159,7 @@ Segment land = {"land", 3.0, 0.0, -20.0, -1.0};
 //Segment journey[] = {takeoff, cruise, land};
 Segment journey[] = {cruise, land};
 int segmentIndex = -1;
-int lastSegmentIndex = 3 - 1;
+int lastSegmentIndex = 2 - 1; // TODO: simplify, compare to len(journey) instead of defining last
 Segment currentSegment;
 float segmentEndTime = 0.0;
 
@@ -186,11 +187,11 @@ void setup()
   esc.attach(EscPin);
   esc_calibrate();
 
-//  // receiver
-//  if (!driver.init()) {
-//    //    Serial.println("init failed - receiver");
-//    while (1); // don't run if receiver not detected
-//  }
+  // // receiver
+  // if (!driver.init()) {
+  // //    Serial.println("init failed - receiver");
+  //   while (1); // don't run if receiver not detected
+  // }
 
   // imu
   Serial.println("Setting up imu");
@@ -225,7 +226,7 @@ void loop() {
   input_roll_pitch(false);
 
   // receiver
-//  int sentCode = input_receiver();
+  // int sentCode = input_receiver();
 
   // fps
   fps.get_fps();
@@ -321,7 +322,7 @@ void input_roll_pitch(bool wordy)
 void control_journey(bool wordy = false) {
   float currentTime = micros();
   if (currentTime > segmentEndTime) {
-    if (segmentIndex < lastSegmentIndex) {
+    if (segmentIndex < lastSegmentIndex) { // TODO: drop use of lastSegmentIndex
       segmentIndex++;
       currentSegment = journey[segmentIndex];
       segmentEndTime = micros() + (currentSegment.durationSecs * SECOND);
@@ -342,11 +343,9 @@ void control_journey(bool wordy = false) {
     rollTarget = currentSegment.targetRoll;
     propSpeed = currentSegment.propSpeed;
 
-    if (wordy) {
-      message_value("rollTarget: ", rollTarget);
-      message_value("pitchTarget: ", pitchTarget);
-      message_value("propSpeed: ", propSpeed);
-    }
+    message_value("rollTarget: ", rollTarget, wordy);
+    message_value("pitchTarget: ", pitchTarget, wordy);
+    message_value("propSpeed: ", propSpeed, wordy);
   }
 }
 
@@ -416,17 +415,18 @@ void act_esc() {
 
 /* HELPERS */
 
-void message_value(String msg, float val) {
-  //  Serial.print(msg);
-  //  Serial.println(val);
+void message_value(String msg, float val, bool wordy) {
+  if (wordy) {
+    Serial.print(msg);
+    Serial.println(val);
+  }
 }
 
 float scale(float val, float inMin, float inMax, float outMin, float outMax) {
   return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
 }
 
-float limit(float val, float minVal, float maxVal)
-{
+float limit(float val, float minVal, float maxVal) {
   return min(max(val, minVal), maxVal);
 }
 
@@ -438,15 +438,13 @@ float set_servo(Servo servo, float pos, bool do_invert = false, bool wordy = fal
 {
   // scale, limit, invert, write
   float posScaled = scale(pos, -1.0, 1.0, servoMin, servoMax);
-  posScaled = min(max(posScaled, servoMin), servoMax);
+  posScaled = limit(posScaled, servoMin, servoMax);
   if (do_invert) {
     posScaled = invert(posScaled, servoMin, servoMax);
   }
   servo.write(posScaled);
 
-  if (wordy) {
-    message_value("Setting servo position: ", posScaled);
-  }
+  message_value("Setting servo position: ", posScaled, wordy);
 
   return pos;
 }
@@ -459,20 +457,16 @@ float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false) {
   posScaled = limit(posScaled, escMin, escMax);
   esc.writeMicroseconds(posScaled);
 
-  if (wordy) {
-    message_value("Setting esc position: ", posScaled);
-  }
+  message_value("Setting esc position: ", posScaled, wordy);
 
   return pos;
 }
 
-float roll_standardize(float roll)
-{
+float roll_standardize(float roll) {
   return roll;
 }
 
-float pitch_standardize(float pitch)
-{
+float pitch_standardize(float pitch) {
   return -pitch;
 }
 
