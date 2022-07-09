@@ -121,8 +121,7 @@ int escStepSize = 0.01; // in unit
 // prop control
 unsigned long SECOND = 1000000;
 unsigned long escEndTime = micros() - (0 * SECOND);  // initialize esc end time as one second ago
-float escDurSecs = 5.0; // TODO: use journey instead
-float propSpeed = 0.75; // close to max // TODO: use journey instead
+float propSpeed = 0;
 
 // roll pitch
 float rollTarget = 0.0;
@@ -199,9 +198,6 @@ void setup()
 
   // finalize
   //  Serial.println("setup complete");
-
-  // set kill time
-  // escEndTime = micros() + (escDurSecs * SECOND);
 
   // fps
   Serial.println("Setting up fps");
@@ -360,13 +356,6 @@ void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
 // DEB - sets escPos
 bool control_prop() // int sentCode)
 {
-
-//  // update end esc end time
-//  if (sentCode == 1) {
-//    escEndTime = micros() + (escDurSecs * SECOND);
-//    //    Serial.println("setting");
-//    //    Serial.println(escEndTime);
-//  }
 
   // set esc target - update global
   if (pitch > -20.0) {
