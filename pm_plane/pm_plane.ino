@@ -231,7 +231,7 @@ void loop() {
   // decision logic
   if (mode == CONTROLLED_JOURNEY) {
 
-    control_journey(true);
+    control_journey(false);
 
     // prop
     control_prop(); // sentCode);
@@ -277,11 +277,11 @@ void input_roll_pitch(bool wordy)
     pitch = pitch_standardize(orientationData.orientation.y);
 
     if (wordy) {
-      //      printEvent(&orientationData);
-      //      Serial.print("Roll: ");
-      //      Serial.println(roll);
-      //      Serial.print("Pitch: ");
-      //      Serial.println(pitch);
+      printEvent(&orientationData);
+      Serial.print("Roll: ");
+      Serial.println(roll);
+      Serial.print("Pitch: ");
+      Serial.println(pitch);
     }
   }
 }
@@ -314,12 +314,12 @@ void control_journey(bool wordy = false) {
       currentSegment = journey[segmentIndex];
       segmentEndTime = micros() + (currentSegment.durationSecs * SECOND);
       if (wordy) {
-        //        Serial.print("Starting segment ");
-        //        Serial.print(segmentIndex);
-        //        Serial.print("/");
-        //        Serial.print(lastSegmentIndex);
-        //        Serial.print(" ");
-        //        Serial.println(currentSegment.name);
+        Serial.print("Starting segment ");
+        Serial.print(segmentIndex);
+        Serial.print("/");
+        Serial.print(lastSegmentIndex);
+        Serial.print(" ");
+        Serial.println(currentSegment.name);
       }
     } else {
       currentSegment = land;
@@ -503,12 +503,13 @@ void printEvent(sensors_event_t* event) {
     z = event->gyro.z;
   }
 
-  //  Serial.print(": x= ");
-  //  Serial.print(x);
-  //  Serial.print(" | y= ");
-  //  Serial.print(y);
-  //  Serial.print(" | z= ");
-  //  Serial.println(z);
+  Serial.print(event->type);
+  Serial.print(": x= ");
+  Serial.print(x);
+  Serial.print(" | y= ");
+  Serial.print(y);
+  Serial.print(" | z= ");
+  Serial.println(z);
 }
 
 void write_log_data(void) {
