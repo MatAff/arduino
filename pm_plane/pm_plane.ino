@@ -134,6 +134,9 @@ float pitchTarget = 0.0;
 // IMU globals
 double roll = 0;
 double pitch = 0;
+double accX = 0;
+double accY = 0;
+double accZ = 0;
 uint16_t BNO055_SAMPLERATE_DELAY_MS = 10;  // how often to read data from the board
 
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
@@ -274,10 +277,16 @@ void input_roll_pitch(bool wordy)
 
     startTime = micros(); // reset timer
 
-    // get orientation and standardize
+    // get orientation (degrees 0 to 359) and standardize (-1 to 1)
     bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
     roll = roll_standardize(orientationData.orientation.z);
     pitch = pitch_standardize(orientationData.orientation.y);
+
+    // get acceleration data (m/s^2)
+    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
+    accX = linearAccelData.acceleration.x;
+    accY = linearAccelData.acceleration.y;
+    accZ = linearAccelData.acceleration.z;
 
     if (wordy) {
       printEvent(&orientationData);
@@ -518,14 +527,26 @@ void write_log_data(void) {
     Serial.println(fd);  // 0 = False
     if (fd) {
       Serial.println("writing to sd");
+      // HEADERS
+      // "ts","segment","roll","pitch","servoPosLeft","servoPosRight","servoPosTail","esc","roll_target","pitch_target","esc_target","accX","accY","accZ"
       fd.print(micros()); fd.print(",");
       fd.print(currentSegment.name); fd.print(",");
+      // roll/pitch sensor
       fd.print(roll); fd.print(",");
       fd.print(pitch); fd.print(",");
+      // servo/motor positions
       fd.print(servoPosLeft); fd.print(",");
       fd.print(servoPosRight); fd.print(",");
       fd.print(servoPosTail); fd.print(",");
-      fd.print(escPos);
+      fd.print(escPos); fd.print(",");
+      // servo/motor targets
+      fd.print(rollTarget); fd.print(",");
+      fd.print(pitchTarget); fd.print(",");
+      fd.print(propSpeed); fd.print(",");
+      // accelerometer
+      fd.print(accX); fd.print(",");
+      fd.print(accY); fd.print(",");
+      fd.print(accZ);
       fd.print("\n");
 
       fd.flush();
