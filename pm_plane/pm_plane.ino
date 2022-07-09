@@ -176,6 +176,7 @@ void setup()
   set_servo(servoL, servoPosLeft);
   set_servo(servoR, servoPosRight);
   set_servo(servoR, servoPosTail);
+  delay(15);
 
   // esc
   Serial.println("Setting up esc");
@@ -250,9 +251,11 @@ void loop() {
 
   // servos
   act_servos();
+  delay(15);
 
   // esc
   act_esc();
+  delay(15);
 
   // log
   write_log_data();
@@ -436,8 +439,6 @@ float set_servo(Servo servo, float pos, bool do_invert = false, bool wordy = fal
     message_value("Setting servo position: ", posScaled);
   }
 
-  delay(15);  // TODO: move delay to overall loop
-
   return pos;
 }
 
@@ -452,8 +453,6 @@ float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false) {
   if (wordy) {
     message_value("Setting esc position: ", posScaled);
   }
-
-  delay(15); // TODO: move to overall loop
 
   return pos;
 }
