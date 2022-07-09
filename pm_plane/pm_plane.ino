@@ -179,7 +179,6 @@ void setup()
   // esc
   Serial.println("Setting up esc");
   esc.attach(EscPin);
-  set_servo(esc, escPos); // TODO: drop, this shouldn't do anything
   esc_calibrate();
 
 //  // receiver
