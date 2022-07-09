@@ -21,7 +21,7 @@
 /* TODO
    update code to adhere to style guide
    include scale a global nature into variable names
-   update scale function to rescale from any scale
+   update scale function to rescale from any scale >> Done
    write tests for functions
    figure out why pitch > -20.0 work for cutting motor on decend
    investigate options for strucs/classes >> Done
