@@ -24,6 +24,7 @@
    update scale function to rescale from any scale >> Done
    write tests for functions
    figure out why pitch > -20.0 work for cutting motor on decend
+    line 237 (control pitch based on esc) and 345 (control esc based on pitch) should be together?
    investigate options for strucs/classes >> Done
    add tail control based on pitch >> Done
 */
