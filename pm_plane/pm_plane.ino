@@ -138,7 +138,7 @@ uint16_t BNO055_SAMPLERATE_DELAY_MS = 10;  // how often to read data from the bo
 
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                    id, address
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);  // TODO: unused, determine relevance
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 unsigned long startTime = micros();
 
 // fps
