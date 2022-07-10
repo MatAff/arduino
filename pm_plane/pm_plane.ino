@@ -4,6 +4,7 @@
    in board manager search for SparkFun and add board manager for pro micro
    set board
    set processor
+   add https://github.com/SMFSW/Queue (Download ZIP >> Sketch >> Incl library >> ZIP library
    set port
    upload
 */
@@ -19,20 +20,16 @@
 */
 
 /* TODO
-   update code to adhere to style guide
    include scale a global nature into variable names
-   update scale function to rescale from any scale >> Done
-   write tests for functions
    figure out why pitch > -20.0 work for cutting motor on decend
     line 237 (control pitch based on esc) and 345 (control esc based on pitch) should be together?
-   investigate options for strucs/classes >> Done
-   add tail control based on pitch >> Done
 */
 
 //#include <RH_ASK.h>
 #include <SPI.h> // Not actually used but needed to compile
 #include <Servo.h>
 #include <SD.h>
+#include <cppQueue.h>
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
@@ -45,6 +42,9 @@
 #define ServoPinL 8
 #define ServoPinTail 4
 #define EscPin 9
+#define IMPLEMENTATION FIFO
+#define OVERWRITE true
+#define SECOND 1000000
 
 // sd globals
 char fileName[] = "220716a.txt"; // SD library only supports up to 8.3 names
@@ -60,7 +60,6 @@ class FPS {
     int count = 0;
     float fps = 0.0;
     long lastUpdateTime = micros();
-    long SECOND = 1000000;
   public:
     float get_fps() {
       this->count += 1;
@@ -68,8 +67,8 @@ class FPS {
       long deltaTime = currentTime - lastUpdateTime;
 
       // calculate fps when sufficient time has passed
-      if (deltaTime > this->SECOND) {
-        this->fps = float(count) / deltaTime * this->SECOND;
+      if (deltaTime > SECOND) {
+        this->fps = float(count) / deltaTime * SECOND;
         this->count = 0.0;
         this->lastUpdateTime = currentTime;
         //        Serial.print("fps: ");
@@ -86,6 +85,36 @@ struct Segment {
   float targetRoll;
   float targetPitch;
   float propSpeed;
+};
+
+class RateOfChange {
+  private:
+    struct PosTime {
+      float pos;
+      unsigned long timee;
+    };
+    int speedSteps = 5;
+    cppQueue posTimeQueue = cppQueue(sizeof(PosTime), speedSteps, IMPLEMENTATION, OVERWRITE);
+  public:
+    float rate = 0;
+    float getRate(float pos, unsigned long timee) {
+      PosTime posTime = {pos, timee};
+      posTimeQueue.push(&posTime);
+      int queueLength = posTimeQueue.getCount();
+      if (queueLength == 0) {
+        return rate;
+      }
+      PosTime prev;
+      if (queueLength < speedSteps) {
+        posTimeQueue.peekIdx(&prev, pos);
+      } else {
+        posTimeQueue.pop(&prev);
+      }
+      float deltaPos = pos - prev.pos;
+      float deltaTime = timee - prev.timee;
+      rate = deltaPos / deltaTime * SECOND;
+      return rate;
+    };
 };
 
 // header - predeclare functions to allow order change
@@ -121,7 +150,6 @@ float escLast = -1.0;
 int escStepSize = 0.01; // in unit
 
 // prop control
-unsigned long SECOND = 1000000;
 unsigned long escEndTime = micros() - (0 * SECOND);  // initialize esc end time as one second ago
 float propSpeed = 0;
 
@@ -138,6 +166,7 @@ double pitch = 0;
 double accX = 0;
 double accY = 0;
 double accZ = 0;
+RateOfChange rollRate;
 uint16_t BNO055_SAMPLERATE_DELAY_MS = 10;  // how often to read data from the board
 
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
@@ -288,6 +317,9 @@ void input_roll_pitch(bool wordy)
     accX = linearAccelData.acceleration.x;
     accY = linearAccelData.acceleration.y;
     accZ = linearAccelData.acceleration.z;
+
+    // Get rate of change
+    rollRate.getRate(roll, micros());
 
     if (wordy) {
       printEvent(&orientationData);
@@ -522,7 +554,7 @@ void write_log_data(void) {
     if (fd) {
       Serial.println("writing to sd");
       // HEADERS
-      // "ts","segment","roll","pitch","servoPosLeft","servoPosRight","servoPosTail","esc","roll_target","pitch_target","esc_target","accX","accY","accZ"
+      // "ts","segment","roll","pitch","servoPosLeft","servoPosRight","servoPosTail","esc","roll_target","pitch_target","esc_target","accX","accY","accZ","rollRate"
       fd.print(micros()); fd.print(",");
       fd.print(currentSegment.name); fd.print(",");
       // roll/pitch sensor
@@ -541,6 +573,8 @@ void write_log_data(void) {
       fd.print(accX); fd.print(",");
       fd.print(accY); fd.print(",");
       fd.print(accZ);
+      // rate of change
+      fd.print(rollRate.rate); fd.print(",");
       fd.print("\n");
 
       fd.flush();
