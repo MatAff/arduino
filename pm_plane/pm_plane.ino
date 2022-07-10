@@ -61,7 +61,7 @@ class FPS {
     float fps = 0.0;
     long lastUpdateTime = micros();
   public:
-    float get_fps() {
+    float getFps() {
       this->count += 1;
       long currentTime = micros();
       long deltaTime = currentTime - lastUpdateTime;
@@ -258,7 +258,7 @@ void loop() {
   // int sentCode = input_receiver();
 
   // fps
-  fps.get_fps();
+  fps.getFps();
 
   /* control section */
 
@@ -323,10 +323,8 @@ void input_roll_pitch(bool wordy)
 
     if (wordy) {
       printEvent(&orientationData);
-      Serial.print("Roll: ");
-      Serial.println(roll);
-      Serial.print("Pitch: ");
-      Serial.println(pitch);
+      messageValue("Roll: ", roll, wordy);
+      messageValue("Pitch: ", pitch, wordy);
     }
   }
 }
@@ -375,9 +373,9 @@ void control_journey(bool wordy = false) {
     rollTarget = currentSegment.targetRoll;
     propSpeed = currentSegment.propSpeed;
 
-    message_value("rollTarget: ", rollTarget, wordy);
-    message_value("pitchTarget: ", pitchTarget, wordy);
-    message_value("propSpeed: ", propSpeed, wordy);
+    messageValue("rollTarget: ", rollTarget, wordy);
+    messageValue("pitchTarget: ", pitchTarget, wordy);
+    messageValue("propSpeed: ", propSpeed, wordy);
   }
 }
 
@@ -388,11 +386,9 @@ void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
   float pitchMax = 10.0;
   float pitchDelta = pitchTarget - pitch;
 
-  // updates left right globals
+  // updates left right tail globals
   servoPosLeft = limit(rollDelta / rollMax, -1.0, 1.0);
   servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0);
-
-  // update tail global
   servoPosTail = limit(pitchDelta / pitchMax, -1.0, 1.0) * -1.0;
 }
 
@@ -447,7 +443,7 @@ void act_esc() {
 
 /* HELPERS */
 
-void message_value(String msg, float val, bool wordy) {
+void messageValue(String msg, float val, bool wordy) {
   if (wordy) {
     Serial.print(msg);
     Serial.println(val);
@@ -476,7 +472,7 @@ float set_servo(Servo servo, float pos, bool do_invert = false, bool wordy = fal
   }
   servo.write(posScaled);
 
-  message_value("Setting servo position: ", posScaled, wordy);
+  messageValue("Setting servo position: ", posScaled, wordy);
 
   return pos;
 }
@@ -489,7 +485,7 @@ float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false) {
   posScaled = limit(posScaled, escMin, escMax);
   esc.writeMicroseconds(posScaled);
 
-  message_value("Setting esc position: ", posScaled, wordy);
+  messageValue("Setting esc position: ", posScaled, wordy);
 
   return pos;
 }
