@@ -7,7 +7,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
-filename = "230110A.TXT"
+filename = "230110B.TXT"
 # headers = ["ts", "segment", "roll", "pitch", "servoPosLeft", "servoPosRight", "servoPosTail", "esc"]
 headers = ["ts", "segment", "roll","pitch","servoPosLeft","servoPosRight",
   "servoPosTail","esc","roll_target","pitch_target","esc_target","accX",
@@ -83,6 +83,7 @@ def flight_to_df(flight):
     rescale("servoPosLeft", [-1, 1], [-45, 45])
     rescale("servoPosRight", [-1, 1], [-45, 45])
     rescale("esc", [-1, 1], [0, 1])
+    df['rollRateExp'] = (df['roll_scaled'] - df['roll_scaled'].shift(1)) / (df['ts'] - df['ts'].shift(1))
 
     return df
 
@@ -107,20 +108,37 @@ def trim_end(flight_df):
 def plot_flight(flight_df):
     sens_cols = ["roll_scaled", "pitch_scaled"]
     act_cols = ["servoPosTail_scaled", "servoPosLeft_scaled", "servoPosRight_scaled"]
-    fig = px.line(flight_df, x="ts", y=[*sens_cols, *act_cols])
+    acc_cols = ["accX", "accY", "accZ"]
+    fig = px.line(flight_df, x="ts", y=[*sens_cols, *act_cols, *acc_cols])
     fig.show()
 
 
 def plot_flight_split(flight_df):
-    fig = make_subplots(rows=2, cols=1)
+
+    # m/s2 > m/s > m
+
+    flight_df['vert_speed'] = (((flight_df.accZ) - 9.8) * -1).cumsum() # / 5 + 2
+    flight_df['height'] = (flight_df.vert_speed).cumsum()
+    flight_df['speed'] = (((flight_df.accX) - 0.0) * 1).cumsum() * -0.1
+
+    fig = make_subplots(rows=4, cols=1)
 
     fig.add_trace(go.Line(name="pitch", x=flight_df["ts"], y=flight_df["pitch_scaled"]), row=1, col=1)
     fig.add_trace(go.Line(name="tail servo", x=flight_df["ts"], y=flight_df["servoPosTail_scaled"]), row=1, col=1)
 
     fig.add_trace(go.Line(name="roll", x=flight_df["ts"], y=flight_df["roll_scaled"]), row=2, col=1)
     fig.add_trace(go.Line(name="roll servo", x=flight_df["ts"], y=flight_df["servoPosLeft_scaled"]), row=2, col=1)
+    fig.add_trace(go.Line(name="roll rate", x=flight_df["ts"], y=flight_df["rollRate"]), row=2, col=1)
+    fig.add_trace(go.Line(name="roll rate exp", x=flight_df["ts"], y=flight_df["rollRateExp"]), row=2, col=1)
 
-    fig.update_layout(height=600, width=800, title_text="Pitch and Roll")
+    fig.add_trace(go.Line(name="accX", x=flight_df["ts"], y=flight_df["accX"]), row=3, col=1)
+    fig.add_trace(go.Line(name="accY", x=flight_df["ts"], y=flight_df["accY"]), row=3, col=1)
+    fig.add_trace(go.Line(name="accZ", x=flight_df["ts"], y=flight_df["accZ"]), row=3, col=1)
+
+    fig.add_trace(go.Line(name="vert_speed", x=flight_df["ts"], y=flight_df["vert_speed"]), row=4, col=1)
+    fig.add_trace(go.Line(name="speed", x=flight_df["ts"], y=flight_df["speed"]), row=4, col=1)
+
+    fig.update_layout(height=1200, width=800, title_text="Pitch and Roll")
     fig.show()
 
 
@@ -146,5 +164,15 @@ for flight_num, flight_df in enumerate(flight_dfs):
 # #%% analyze specific flight
 # flight_num = 4
 # plot_flight_split(flight_dfs[flight_num])
+
+# %%
+
+# flight_df = flight_dfs[-3]
+# flight_df['height'] = (((flight_df.accZ) - 9.8) * -1).cumsum() / 5 + 2
+
+# px.line(flight_df, x='ts', y='height')
+
+# (((flight_dfs[-1].accZ) - 9.75) * -1).cumsum().plot.line()
+# %%
 
 # %%

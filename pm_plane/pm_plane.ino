@@ -182,15 +182,15 @@ unsigned long startTime = micros();
 FPS fps;
 
 // segment - duration, bank, lift, engine
-Segment takeoff = {"takeoff", 4.0, 0.0, 25.0, 1.0};
-Segment cruise = {"cruise", 5.0, 0.0, 0.0, 1.0};
-Segment left = {"left", 3.0, 15.0, 0.0, 0.25};
-Segment right = {"right", 3.0, -15.0, 0.0, 0.25};
+Segment climb = {"climb", 4.0, 0.0, 20.0, 1.0};
+Segment cruise = {"cruise", 8.0, 0.0, 0.0, 1.0};
+Segment left = {"left", 3.0, 15.0, 0.0, 1.0};
+Segment right = {"right", 3.0, -15.0, 0.0, 1.0};
 Segment land = {"land", 3.0, 0.0, -20.0, -1.0};
 
 // journey
-//Segment journey[] = {takeoff, cruise, land};
-Segment journey[] = {cruise, land};
+Segment journey[] = {climb, cruise, land};
+// Segment journey[] = {cruise, land};
 int segmentIndex = -1;
 int lastSegmentIndex = 2 - 1; // TODO: simplify, compare to len(journey) instead of defining last
 Segment currentSegment;
@@ -251,51 +251,26 @@ void setup()
 
 void loop() {
 
-  Serial.println("testt");
-
-  /* input section */
-
-  // imu
-  input_roll_pitch(false);
-
-  // receiver
+  // input section
+  input_roll_pitch(false); // imu
   // int sentCode = input_receiver();
-
-  // fps
   fps.getFps();
 
-  /* control section */
-
-  // decision logic
+  // control section
   if (mode == CONTROLLED_JOURNEY) {
-
     control_journey(false);
-
-    // prop
-    control_prop(); // sentCode);
-
-    // adjust desired pitch based on escPos
+    control_prop();
     if (propSpeed < 0.0) {
-      pitchTarget = -15.0;
+      pitchTarget = -15.0; // adjust desired pitch based on escPos
     }
-
-    // roll
     control_roll_pitch(rollTarget, pitchTarget);
-
   }
 
-  /* act section */
-
-  // servos
+  // act section
   act_servos();
-  delay(15);
-
-  // esc
   act_esc();
-  delay(15);
-
-  // log
   write_log_data();
+  delay(15);
 
 }
 
@@ -385,15 +360,15 @@ void control_journey(bool wordy = false) {
 
 void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
 {
-  float rollMax = 10.0;
   float rollDelta = rollTarget - roll;
-  float pitchMax = 10.0;
   float pitchDelta = pitchTarget - pitch;
+  float rollP = 0.1;
+  float pitchP = -0.05;
 
   // updates left right tail globals
-  servoPosLeft = limit(rollDelta / rollMax, -1.0, 1.0);
-  servoPosRight = limit(rollDelta / rollMax, -1.0, 1.0);
-  servoPosTail = limit(pitchDelta / pitchMax, -1.0, 1.0) * -1.0;
+  servoPosLeft = limit(rollDelta * rollP, -1.0, 1.0);
+  servoPosRight = limit(rollDelta * rollP, -1.0, 1.0);
+  servoPosTail = limit(pitchDelta * pitchP, -1.0, 1.0);
 }
 
 // DEB - sets escPos
