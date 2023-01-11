@@ -53,12 +53,11 @@
 // sd globals
 char fileName[] = "230110a.txt"; // SD library only supports up to 8.3 names
 File fd;
-const uint8_t chipSelect = 5; // 8;
-const uint8_t cardDetect = 7; // 9;
+const uint8_t chipSelect = 5;
+const uint8_t cardDetect = 7;
 bool alreadyBegan = false;  // SD.begin() misbehaves if not first call
 bool cardExists = false;
 
-// class to display fps at regular interval
 class FPS {
   private:
     int count = 0;
@@ -75,8 +74,6 @@ class FPS {
         this->fps = float(count) / deltaTime * SECOND;
         this->count = 0.0;
         this->lastUpdateTime = currentTime;
-        //        Serial.print("fps: ");
-        //        Serial.println(this->fps);
       } else {
         return this->fps;
       }
@@ -145,7 +142,6 @@ float servoLastLeft = -1.0;
 float servoLastRight = -1.0;
 float servoLastTail = -1.0;
 
-// esc globals
 Servo esc;
 float escMin = 1200.0;
 float escMax = 1800.0;
@@ -153,11 +149,8 @@ float escPos = -1.0;
 float escLast = -1.0;
 int escStepSize = 0.01; // in unit
 
-// prop control
-unsigned long escEndTime = micros() - (0 * SECOND);  // initialize esc end time as one second ago
+// unsigned long escEndTime = micros() - (0 * SECOND);  // initialize esc end time as one second ago
 float propSpeed = 0;
-
-// roll pitch
 float rollTarget = 0.0;
 float pitchTarget = 0.0;
 
@@ -178,7 +171,6 @@ uint16_t BNO055_SAMPLERATE_DELAY_MS = 10;  // how often to read data from the bo
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 unsigned long startTime = micros();
 
-// fps
 FPS fps;
 
 // segment - duration, bank, lift, engine
@@ -188,24 +180,19 @@ Segment left = {"left", 3.0, 15.0, 0.0, 1.0};
 Segment right = {"right", 3.0, -15.0, 0.0, 1.0};
 Segment land = {"land", 3.0, 0.0, -20.0, -1.0};
 
-// journey
 Segment journey[] = {climb, cruise, land};
-// Segment journey[] = {cruise, land};
 int segmentIndex = -1;
-int lastSegmentIndex = 2 - 1; // TODO: simplify, compare to len(journey) instead of defining last
+int lastSegmentIndex = 3 - 1; // TODO: simplify, compare to len(journey) instead of defining last
 Segment currentSegment;
 float segmentEndTime = 0.0;
 
-/* SETUP */
 
 void setup()
 {
   Serial.begin(9600);  // Debugging only
-//    Serial.begin(57600);  // Debugging only
     Serial.println("Initializing");
   //  while (!Serial); // don't run if not plugged in via USB
 
-  // servos
   Serial.println("Setting up servos");
   servoR.attach(ServoPinR);
   servoL.attach(ServoPinL);
@@ -215,7 +202,6 @@ void setup()
   set_servo(servoR, servoPosTail);
   delay(15);
 
-  // esc
   Serial.println("Setting up esc");
   esc.attach(EscPin);
   esc_calibrate();
@@ -226,7 +212,6 @@ void setup()
   //   while (1); // don't run if receiver not detected
   // }
 
-  // imu
   Serial.println("Setting up imu");
   if (!bno.begin()) {
     //    Serial.print("No BNO055 detected");
@@ -234,29 +219,24 @@ void setup()
   }
   delay(1000);
 
-  // finalize
-  //  Serial.println("setup complete");
-
-  // fps
   Serial.println("Setting up fps");
   fps = FPS();
 
-  // logging
   Serial.println("Setting up sd card");
   pinMode(cardDetect, INPUT);
   setup_sd_card();
+
+  Serial.println("setup complete");
 }
 
-/* RUN */
 
 void loop() {
-
-  // input section
+  // input
   input_roll_pitch(false); // imu
   // int sentCode = input_receiver();
   fps.getFps();
 
-  // control section
+  // control
   if (mode == CONTROLLED_JOURNEY) {
     control_journey(false);
     control_prop();
@@ -266,12 +246,11 @@ void loop() {
     control_roll_pitch(rollTarget, pitchTarget);
   }
 
-  // act section
+  // act
   act_servos();
   act_esc();
   write_log_data();
   delay(15);
-
 }
 
 /* INPUT */
@@ -365,16 +344,15 @@ void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
   float rollP = 0.1;
   float pitchP = -0.05;
 
-  // updates left right tail globals
+  // update left right tail globals
   servoPosLeft = limit(rollDelta * rollP, -1.0, 1.0);
   servoPosRight = limit(rollDelta * rollP, -1.0, 1.0);
   servoPosTail = limit(pitchDelta * pitchP, -1.0, 1.0);
 }
 
 // DEB - sets escPos
-bool control_prop() // int sentCode)
+bool control_prop()
 {
-
   // set esc target - update global
   if (pitch > -20.0) {
     escPos = propSpeed;
@@ -383,40 +361,26 @@ bool control_prop() // int sentCode)
     escPos = -1.0; // TODO: Update code so stop can be 0.0
     return false;
   }
-
 }
 
 /* ACT */
 
 void act_servos()
 {
-
   if (servoLastLeft != servoPosLeft) {
     servoLastLeft = set_servo(servoL, servoPosLeft, true, false);
   }
-
   if (servoLastRight != servoPosRight) {
     servoLastRight = set_servo(servoR, servoPosRight, true, false);
   }
-
   if (servoLastTail != servoPosTail) {
     servoLastTail = set_servo(servoTail, servoPosTail, false, false);
   }
 }
 
-// DEB - calculates escPosLimit and passes to set_esc
 void act_esc() {
-
   if (escLast != escPos) {
-
-    // limit to steps size
-    //    float escPosLimit = escLast + limit(escPos - escLast, escStepSize, -escStepSize);
-    float escPosLimit = escPos;
-
-    //    Serial.print("escPosLimit: ");
-    //    Serial.println(escPosLimit);
-
-    escLast = set_esc(esc, escPosLimit, false, true);
+    escLast = set_esc(esc, escPos, false, true);
   }
 }
 
@@ -450,22 +414,17 @@ float set_servo(Servo servo, float pos, bool do_invert = false, bool wordy = fal
     posScaled = invert(posScaled, servoMin, servoMax);
   }
   servo.write(posScaled);
-
   messageValue("Setting servo position: ", posScaled, wordy);
-
   return pos;
 }
 
 // DEB - scales, writes and returns
 float set_esc(Servo esc, float pos, bool invert = false, bool wordy = false) {
-
   // scale, limit, write
   float posScaled = scale(pos, -1.0, 1.0, escMin, escMax);
   posScaled = limit(posScaled, escMin, escMax);
   esc.writeMicroseconds(posScaled);
-
   messageValue("Setting esc position: ", posScaled, wordy);
-
   return pos;
 }
 
@@ -549,7 +508,7 @@ void write_log_data(void) {
       fd.print(accY); fd.print(",");
       fd.print(accZ); fd.print(",");
       // rate of change
-      fd.print(rollRate.rate); # fd.print(",");
+      fd.print(rollRate.rate); // fd.print(",");
       fd.print("\n");
 
       fd.flush();
