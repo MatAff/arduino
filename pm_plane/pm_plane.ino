@@ -9,6 +9,10 @@
    upload
 */
 
+/* TROUBLESHOOTING
+ *  https://www.shellhacks.com/arduino-dev-ttyacm0-permission-denied/
+ */
+
 /* REFERENCE
    pins: https://cdn.sparkfun.com/assets/9/c/3/c/4/523a1765757b7f5c6e8b4567.png
 */
