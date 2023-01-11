@@ -51,7 +51,7 @@
 #define SECOND 1000000
 
 // sd globals
-char fileName[] = "220716a.txt"; // SD library only supports up to 8.3 names
+char fileName[] = "230110a.txt"; // SD library only supports up to 8.3 names
 File fd;
 const uint8_t chipSelect = 5; // 8;
 const uint8_t cardDetect = 7; // 9;
@@ -572,9 +572,9 @@ void write_log_data(void) {
       // accelerometer
       fd.print(accX); fd.print(",");
       fd.print(accY); fd.print(",");
-      fd.print(accZ);
+      fd.print(accZ); fd.print(",");
       // rate of change
-      fd.print(rollRate.rate); fd.print(",");
+      fd.print(rollRate.rate); # fd.print(",");
       fd.print("\n");
 
       fd.flush();

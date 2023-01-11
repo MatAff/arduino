@@ -7,8 +7,12 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
-filename = "220619A.TXT"
-headers = ["ts", "segment", "roll", "pitch", "servoPosLeft", "servoPosRight", "servoPosTail", "esc"]
+filename = "230110A.TXT"
+# headers = ["ts", "segment", "roll", "pitch", "servoPosLeft", "servoPosRight", "servoPosTail", "esc"]
+headers = ["ts", "segment", "roll","pitch","servoPosLeft","servoPosRight",
+  "servoPosTail","esc","roll_target","pitch_target","esc_target","accX",
+  "accY","accZ","rollRate"]
+
 
 #%% preprocess
 with open(filename) as file:
@@ -16,23 +20,32 @@ with open(filename) as file:
 
 # replace any number of \x00 with one newline
 data = re.sub("\0+", "\n", data)
+print('data', data[0:100])
 
+# split lines
 lines = data.split('\n')
+print(len(lines))
 
 split_lines = []
 for e in lines:
     split_line = e.split(",")
     # correct number of columns and every column has data
-    if len(split_line) == len(headers) and all([len(e) > 0 for e in split_line]):
+    if (len(split_line) == len(headers)): #and
+    #    (all([len(e) > 0 for e in split_line]):
         split_lines.append(split_line)
+    else:
+        print('nope - should show once')
+print(len(split_lines))
 
 #%% break into distinct flights
 starts = [0]
 flights = []
 for i, e in enumerate(split_lines):
-    if i < len(split_lines)-1 and int(split_lines[i][0]) > int(split_lines[i+1][0]):
+    if i < len(split_lines) - 1 and int(split_lines[i][0]) > int(split_lines[i+1][0]):
         flights.append(split_lines[starts[-1]:i])
         starts.append(i+1)
+flights.append(split_lines[starts[-1]:i])
+print(len(flights))
 
 #%% remove boring data
 
@@ -50,6 +63,7 @@ for i, e in enumerate(split_lines):
 
 #%% build dataframe for each flight
 def flight_to_df(flight):
+    # flight = flights[0] # Debug only REMOVE!!
     df = pd.DataFrame(flight, columns=headers)
 
     df['ts'] = df['ts'].astype('int')
@@ -112,9 +126,18 @@ def plot_flight_split(flight_df):
 
 #%% view all flights
 
-flight_dfs = [flight_to_df(flight) for flight in flights]
-flight_dfs = [trim_end(flight_df) for flight_df in flight_dfs]
+len(flights)
+len(flights[0])
 
+
+
+flight_dfs = [flight_to_df(flight) for flight in flights]
+len(flight_dfs[0])
+flight_dfs = [trim_end(flight_df) for flight_df in flight_dfs]
+len(flight_dfs[0])
+
+print(len(flight_dfs))
+len(flight_dfs[0])
 
 for flight_num, flight_df in enumerate(flight_dfs):
     print(f"Flight number: {flight_num}")
