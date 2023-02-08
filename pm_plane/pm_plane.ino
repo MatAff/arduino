@@ -154,6 +154,10 @@ float propSpeed = 0;
 float rollTarget = 0.0;
 float pitchTarget = 0.0;
 
+// Control parameters
+float rollP = 0.1;
+float pitchP = -0.05;
+
 // receiver
 //RH_ASK driver(2000, RxPin, TxPin, PowerPin, false);
 
@@ -225,6 +229,8 @@ void setup()
   Serial.println("Setting up sd card");
   pinMode(cardDetect, INPUT);
   setup_sd_card();
+
+  write_log_startup();
 
   Serial.println("setup complete");
 }
@@ -341,8 +347,6 @@ void control_roll_pitch(float rollTarget = 0.0, float pitchTarget = 0.0)
 {
   float rollDelta = rollTarget - roll;
   float pitchDelta = pitchTarget - pitch;
-  float rollP = 0.1;
-  float pitchP = -0.05;
 
   // update left right tail globals
   servoPosLeft = limit(rollDelta * rollP, -1.0, 1.0);
@@ -480,8 +484,20 @@ void printEvent(sensors_event_t* event) {
   Serial.println(z);
 }
 
+void write_log_startup(void) {
+  Serial.println(cardExists);
+  if (cardExists) {
+    fd = SD.open(fileName, FILE_WRITE);
+    Serial.println(fd);  // 0 = False
+    if (fd) {
+      fd.print("FLY,");
+      fd.print("rollP="); fd.print(rollP); fd.print(",");
+      fd.print("pitchP="); fd.print(pitchP); fd.print(",");
+}}}
+
 void write_log_data(void) {
   Serial.println(cardExists);
+  static int lineNumber = 0;
   if (cardExists) {
     fd = SD.open(fileName, FILE_WRITE);
     Serial.println(fd);  // 0 = False
@@ -489,6 +505,7 @@ void write_log_data(void) {
       Serial.println("writing to sd");
       // HEADERS
       // "ts","segment","roll","pitch","servoPosLeft","servoPosRight","servoPosTail","esc","roll_target","pitch_target","esc_target","accX","accY","accZ","rollRate"
+      fd.print(lineNumber++); fd.print(",");
       fd.print(micros()); fd.print(",");
       fd.print(currentSegment.name); fd.print(",");
       // roll/pitch sensor
