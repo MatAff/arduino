@@ -237,6 +237,9 @@ void setup()
 
 
 void loop() {
+
+  Serial.println("20230207_2226");
+
   // input
   input_roll_pitch(false); // imu
   // int sentCode = input_receiver();
