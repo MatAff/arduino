@@ -27,6 +27,12 @@ Adafruit_NeoPixel strip2(LED_COUNT, LED_PIN2, NEO_GRB + NEO_KHZ800);
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
 
+// Settings
+bool PLAY_LIGHT_CONTROL = false;
+bool PLAY_LIGHTLOCATION = false;
+bool PLAY_EARLY = false;
+bool PLAY_ORIGINALS = false;
+
 
 // START SHARED
 #include <math.h> 
@@ -49,218 +55,207 @@ struct Node {
   Color color;
 };
 
-
-
 class LightController {
 
-private:
-  Node lights[48];
-  int led_eye_count = 12;
-  int skull_mm = 300;
-  int eye_mm = 80;
-  int light_mm = 20;
-  float pi = 3.14159;
-  Loc source = {-50, 0};
-  int delta = 10;
-  char* pattern = "fade"; // fade, line, blink, fire
-
-  // Blink
-  int blinkVal = 200;
-  int blinkDelta = -1;
-  int eyeVal = 2;
-
-  // Fire
-  int fireI = 0;
-
-public:
-  LightController () {
-    int i = 0;
-    for (int skull=0; skull<2; skull++) {
-      for (int eye=0; eye<2; eye++) {
-        for (int light=0; light<this->led_eye_count; light++) {
-          Color color = {skull * 255, eye * 255, light * 20};
-          Node node = {skull, eye, light, color};
-          lights[i] = node;
-          i++;
-        }
-      }
-    }
-  }
+  private:
+    int overallCount = 0;
+    Node lights[48];
+    int led_eye_count = 12;
+    int skull_mm = 300;
+    int eye_mm = 80;
+    int light_mm = 20;
+    float pi = 3.14159;
+    Loc source = {-50, 0};
+    int delta = 10;
+    char* pattern = "fade"; // fade, line, blink, fire
   
-  Node getLight(int i) {
-     return lights[i];
-  }
-  
-  Node* getLights() {
-    return lights;
-  }
-
-  Loc getLightLoc(int skull, int eye, int light) {
-    float x = skull * skull_mm + eye * eye_mm + cos(float(light) / led_eye_count * 2 * pi) * light_mm;
-    float y = sin(float(light) / led_eye_count * 2 * pi) * light_mm;
-    return {x, y};
-  }
-
-  float getDistLoc(Loc source, Loc target) {
-    return pow(pow(source.x - target.x, 2) + pow(source.y - target.y, 2), 0.5);
-  }
-
-  void next() {
-    
-    // Fade pattern
-    if (this->pattern=="fade") {
-      int i = 0;
-      for (int skull=0; skull<2; skull++) {
-        for (int eye=0; eye<2; eye++) {
-          for (int light=0; light<led_eye_count; light++) {
-            Loc target = this->getLightLoc(skull, eye, light);
-            float dist = getDistLoc(this->source, target);
-            Color color = {int(dist / 600 * 255), 255 - int(dist / 600 * 255), 0};
-            Node node = {skull, eye, light, color};
-            this->lights[i] = node;
-            i++;
-          }
-        }
-      }
-      float x = this->source.x + this->delta;
-      float y = this->source.y;
-      if (x>400) { delta = -10; }
-      if (x<0) { delta = 10; }
-      this->source = {x, y};
-    }
-
-    // Line moving sideways
-    if (this->pattern=="line") {
-      delta = 5;
-      int i = 0;
-      for (int skull=0; skull<2; skull++) {
-        for (int eye=0; eye<2; eye++) {
-          for (int light=0; light<led_eye_count; light++) {
-            Loc target = this->getLightLoc(skull, eye, light);
-            // float dist = getDistLoc(this->source, target);
-            float dist = abs(source.x - target.x);
-            Color color = {255 - int(dist) * 15, 255 - int(dist) * 15, 255 - int(dist) * 15};
-            Node node = {skull, eye, light, color};
-            this->lights[i] = node;
-            i++;
-          }
-        }
-      }
-      float x = this->source.x + this->delta;
-      float y = this->source.y;
-      if (x>800) { x = -50; }
-//      if (x<0) { delta = 10; }
-      this->source = {x, y};
-    }
-
     // Blink
-    if (this->pattern=="blink") {
+    int blinkVal = 200;
+    int blinkDelta = -1;
+    int eyeVal = 2;
+  
+    // Fire
+    int fireI = 0;
+
+  public:
+    LightController () {
+      // Set initial colors.
       int i = 0;
       for (int skull=0; skull<2; skull++) {
         for (int eye=0; eye<2; eye++) {
-          for (int light=0; light<led_eye_count; light++) {
-            Loc target = this->getLightLoc(skull, eye, light);
-            Color color;
-            color = {255, 255, 255};
-            if (skull*2 + eye==eyeVal) {
-              if (abs(target.y) > blinkVal) {
+          for (int light=0; light<this->led_eye_count; light++) {
+            Color color = {skull * 255, eye * 255, light * 20};
+            Node node = {skull, eye, light, color};
+            lights[i] = node;
+            i++;
+          }
+        }
+      }
+    }
+
+    int getOverallCount() { return overallCount; }
+    
+    Node getLight(int i) { return lights[i]; }
+    
+    Loc getLightLoc(int skull, int eye, int light) {
+      float x = skull * skull_mm + eye * eye_mm + cos(float(light) / led_eye_count * 2 * pi) * light_mm;
+      float y = sin(float(light) / led_eye_count * 2 * pi) * light_mm;
+      return {x, y};
+    }
+
+    float getDistLoc(Loc source, Loc target) {
+      return pow(pow(source.x - target.x, 2) + pow(source.y - target.y, 2), 0.5);
+    }
+
+    void next() {
+
+      overallCount++;
+      
+      // Fade pattern
+      if (this->pattern=="fade") {
+        int i = 0;
+        for (int skull=0; skull<2; skull++) {
+          for (int eye=0; eye<2; eye++) {
+            for (int light=0; light<led_eye_count; light++) {
+              Loc target = this->getLightLoc(skull, eye, light);
+              float dist = getDistLoc(this->source, target);
+              Color color = {int(dist / 600 * 255), 255 - int(dist / 600 * 255), 0};
+              Node node = {skull, eye, light, color};
+              this->lights[i] = node;
+              i++;
+            }
+          }
+        }
+        float x = this->source.x + this->delta;
+        float y = this->source.y;
+        if (x>400) { delta = -10; }
+        if (x<0) { delta = 10; }
+        this->source = {x, y};
+      }
+
+      // Line moving sideways
+      if (this->pattern=="line") {
+        delta = 5;
+        int i = 0;
+        for (int skull=0; skull<2; skull++) {
+          for (int eye=0; eye<2; eye++) {
+            for (int light=0; light<led_eye_count; light++) {
+              Loc target = this->getLightLoc(skull, eye, light);
+              // float dist = getDistLoc(this->source, target);
+              float dist = abs(source.x - target.x);
+              Color color = {255 - int(dist) * 15, 255 - int(dist) * 15, 255 - int(dist) * 15};
+              Node node = {skull, eye, light, color};
+              this->lights[i] = node;
+              i++;
+            }
+          }
+        }
+        float x = this->source.x + this->delta;
+        float y = this->source.y;
+        if (x>800) { x = -50; }
+  //      if (x<0) { delta = 10; }
+        this->source = {x, y};
+      }
+
+      // Blink
+      if (this->pattern=="blink") {
+        int i = 0;
+        for (int skull=0; skull<2; skull++) {
+          for (int eye=0; eye<2; eye++) {
+            for (int light=0; light<led_eye_count; light++) {
+              Loc target = this->getLightLoc(skull, eye, light);
+              Color color;
+              color = {255, 255, 255};
+              if (skull*2 + eye==eyeVal) {
+                if (abs(target.y) > blinkVal) {
+                  color = {0, 0, 0};
+                }
+              }
+              Node node = {skull, eye, light, color};
+              this->lights[i] = node;
+              i++;
+            }
+          }
+        }
+        
+        blinkVal += blinkDelta;
+        if (blinkVal<-10) { blinkDelta = 1; }
+        if (blinkVal>200) {
+          blinkDelta = -1; 
+          eyeVal = eyeVal + 1;
+          if (eyeVal > 3) {
+            eyeVal = 0;
+          }
+        }
+      }
+
+      // Fire
+      if (this->pattern=="fire") {
+        int i = 0;
+        float val = iToVal(fireI) * 20;
+        for (int skull=0; skull<2; skull++) {
+          for (int eye=0; eye<2; eye++) {
+            for (int light=0; light<led_eye_count; light++) {
+              Loc target = this->getLightLoc(skull, eye, light);
+              int strandNr = skull * 4 + eye * 2;
+              if (cos(float(light) / led_eye_count * 2 * pi) > 0) {
+                strandNr +=1;         
+              }
+              switch(strandNr) {
+                case 0:
+                  val = iToVal(fireI) * 20;
+                  break;
+                case 1:
+                  val = iToVal(fireI + 3113, 200, 750, 810) * 20;
+                  break;
+                case 2:
+                  val = iToVal(fireI + 5335, 580, 930, 150) * 20;
+                  break;
+                case 3:
+                  val = iToVal(fireI + 4383, 240, 290, 150) * 20;
+                  break;
+                case 4:
+                  val = iToVal(fireI + 1453, 230, 703, 203) * 20;
+                  break;
+                case 5:
+                  val = iToVal(fireI + 2385, 230, 2240, 260) * 20;
+                  break;
+                case 6:
+                  val = iToVal(fireI + 9482, 590, 200, 520) * 20;
+                  break;
+                case 7:
+                  val = iToVal(fireI + 2952, 290, 740, 920) * 20;
+                  break;
+              }
+              
+              Color color;
+              if (target.y > val) {
+                float y = target.y * -1 + 20;
+                float demon = val * -1 + 20;
+                float ratio = y / demon;
+                color = {255, int(ratio * 255), 0};
+              } else {
                 color = {0, 0, 0};
               }
+              Node node = {skull, eye, light, color};
+              this->lights[i] = node;
+              i++;
             }
-            Node node = {skull, eye, light, color};
-            this->lights[i] = node;
-            i++;
           }
         }
+        fireI = fireI + 5;
       }
-      
-      blinkVal += blinkDelta;
-      if (blinkVal<-10) { blinkDelta = 1; }
-      if (blinkVal>200) {
-        blinkDelta = -1; 
-        eyeVal = eyeVal + 1;
-        if (eyeVal > 3) {
-          eyeVal = 0;
-        }
-      }
+  
     }
 
-    // Fire
-    if (this->pattern=="fire") {
-      int i = 0;
-      float val = iToVal(fireI) * 20;
-      for (int skull=0; skull<2; skull++) {
-        for (int eye=0; eye<2; eye++) {
-          for (int light=0; light<led_eye_count; light++) {
-            Loc target = this->getLightLoc(skull, eye, light);
-            int strandNr = skull * 4 + eye * 2;
-            if (cos(float(light) / led_eye_count * 2 * pi) > 0) {
-              strandNr +=1;         
-            }
-            switch(strandNr) {
-              case 0:
-                val = iToVal(fireI) * 20;
-                break;
-              case 1:
-                val = iToVal(fireI + 3113, 200, 750, 810) * 20;
-                break;
-              case 2:
-                val = iToVal(fireI + 5335, 580, 930, 150) * 20;
-                break;
-              case 3:
-                val = iToVal(fireI + 4383, 240, 290, 150) * 20;
-                break;
-              case 4:
-                val = iToVal(fireI + 1453, 230, 703, 203) * 20;
-                break;
-              case 5:
-                val = iToVal(fireI + 2385, 230, 2240, 260) * 20;
-                break;
-              case 6:
-                val = iToVal(fireI + 9482, 590, 200, 520) * 20;
-                break;
-              case 7:
-                val = iToVal(fireI + 2952, 290, 740, 920) * 20;
-                break;
-            }
-            
-            Color color;
-            if (target.y > val) {
-              float y = target.y * -1 + 20;
-              float demon = val * -1 + 20;
-              float ratio = y / demon;
-              color = {255, int(ratio * 255), 0};
-            } else {
-              color = {0, 0, 0};
-            }
-            Node node = {skull, eye, light, color};
-            this->lights[i] = node;
-            i++;
-          }
-        }
-      }
-      fireI = fireI + 5;
+    float iToVal(int i, int a=50, int b=70, int c=110) {
+      return sin(i/a) * 1/1 + sin(i/b) * 1/2 + sin(i/c) * 1/3;
     }
-
-  }
-
-  float iToVal(int i, int a=50, int b=70, int c=110) {
-    return sin(i/a) * 1/1 + sin(i/b) * 1/2 + sin(i/c) * 1/3;
-  }
     
-
-//       'a': i_to_val(i),
-//       'b': i_to_val(i+31134, 20, 75, 81),
-//       'c': i_to_val(i+5335, 58, 93, 15),
-//       'd': i_to_val(i+4383, 24, 29, 15),
-//       'e': i_to_val(i+1453, 23, 73, 23),
-//       'f': i_to_val(i+2385, 23, 24, 26),
-//       'g': i_to_val(i+9482, 59, 24, 52),
-//       'h': i_to_val(i+2952, 29, 74, 92),
 };
 // END SHARED
 
-
+// Need to go after shared
 extern void setPixel(int skull, int eye, int light, Color color);
 extern Loc getLightLoc(int skull, int eye, int light);
 extern float getDistLoc(Loc source, Loc target);
@@ -273,29 +268,26 @@ class Lagger {
     int size;
     cppQueue q = cppQueue(sizeof(Node)); // What if I don't want to initiate this here?
   public:
-    Lagger(int size);
-    lagPixel(Node node);
+    Lagger(int size) {
+      this->size = size;
+      this->q = cppQueue(sizeof(Node), size, IMPLEMENTATION);
+    }
+    
+    lagPixel(Node node) {
+      this->q.push(&node);
+      for (int i=0; i < q.getCount(); i++) {
+          Node n;
+          q.peekIdx(&n, i);
+          setPixel(n.skull, n.eye, n.light, n.color);
+      }
+      Node w;
+      if (q.getCount() >= this->size) {
+        this->q.pop(&w);
+      }
+      Color BLACK = {0, 0, 0};
+      setPixel(w.skull, w.eye, w.light, BLACK);
+    }
 };
-
-Lagger::Lagger(int size) {
-  this->size = size;
-  this->q = cppQueue(sizeof(Node), size, IMPLEMENTATION);
-}
-
-Lagger::lagPixel(Node node) {
-  this->q.push(&node);
-  for (int i=0; i < q.getCount(); i++) {
-      Node n;
-      q.peekIdx(&n, i);
-      setPixel(n.skull, n.eye, n.light, n.color);
-  }
-  Node w;
-  if (q.getCount() >= this->size) {
-    this->q.pop(&w);
-  }
-  Color BLACK = {0, 0, 0};
-  setPixel(w.skull, w.eye, w.light, BLACK);
-}
 
 class LightLocation {
   private:
@@ -307,9 +299,6 @@ class LightLocation {
 Color LightLocation::getColor(int skull, int eye, int light) {
   Loc target = getLightLoc(skull, eye, light);
   float dist = getDistLoc(this->source, target);
-//  Serial.println(skull);
-//  Serial.println(eye);
-//  Serial.println(light);
   float x = source.x + 1;
   if (x>400) { x = -100; }
   source = {x, 0};
@@ -324,9 +313,6 @@ float getDistLoc(Loc source, Loc target) {
 Loc getLightLoc(int skull, int eye, int light) {
   float x = skull * SKULL_MM + eye * EYE_MM + sin(float(light) / LED_EYE_COUNT * 2 * PI) * LIGHT_MM;
   float y = skull * SKULL_MM + eye * EYE_MM + cos(float(light) / LED_EYE_COUNT * 2 * PI) * LIGHT_MM;
-  //Serial.println(light);
-  //Serial.println(float(light) / LED_EYE_COUNT * 2 * PI);
-  //Serial.println(sin(float(light) / LED_EYE_COUNT * 2 * PI) * LIGHT_MM);
   return {x, y};
 }
 
@@ -346,20 +332,7 @@ void setPixel(int skull, int eye, int light, Color color) {
   }
 }
 
-bool PLAY_ORIGINALS = false;
 Color BLACK = {0, 0, 0};
-
-void setup() {
-  strip1.begin();
-  strip2.begin();
-  strip1.show();  // Turn OFF all pixels ASAP
-  strip2.show();
-  strip1.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
-  strip2.setBrightness(50);
-//  lc = LightController();
-}
-
-
 
 void locationColor(LightLocation& ll) {
   for (int skull=0; skull<2; skull++) {
@@ -371,7 +344,6 @@ void locationColor(LightLocation& ll) {
     }
   }
 }
-
 
 void lightWalk(int wait) {
   for (int skull=0; skull<2; skull++) {
@@ -385,8 +357,6 @@ void lightWalk(int wait) {
   }
 }
 
-
-
 void rotate(int skull, int eye, Color color, int wait, bool clean, int start, int dir, int dur, Lagger& lagger) {
   for (int light=0; light<dur; light++) {
     int actLight = (start + LED_EYE_COUNT + light * dir) % LED_EYE_COUNT;
@@ -394,9 +364,6 @@ void rotate(int skull, int eye, Color color, int wait, bool clean, int start, in
     Node n = {skull, eye, actLight, color};
     lagger.lagPixel(n);
     delay(wait);
-//    if (clean) {
-//      setPixel(skull, eye, actLight, BLACK);
-//    }
   }
 }
 
@@ -452,8 +419,6 @@ void rotateEyesAlt(int wait) {
   }
 }
 
-
-
 void wipe() {
   for (int skull=0; skull<2; skull++) {
     for (int eye=0; eye<2; eye++) {
@@ -463,7 +428,6 @@ void wipe() {
     }
   }
 }
-
 
 void firsts() {
   wipe();
@@ -477,9 +441,6 @@ void firsts() {
   delay(500);
 
 }
-
-
-
 
 // Some functions of our own for creating animated effects -----------------
 
@@ -567,6 +528,67 @@ void theaterChaseRainbow(int wait) {
   }
 }
 
+void setup() {
+  strip1.begin();
+  strip2.begin();
+  strip1.show();  // Turn OFF all pixels ASAP
+  strip2.show();
+  strip1.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
+  strip2.setBrightness(50);
+}
+
+void loop() {
+
+  if (PLAY_LIGHT_CONTROL) {
+    while(lc.getOverallCount() < 10000) {
+      for (int i = 0; i < 48; i++) {
+        Node current = lc.getLight(i);
+        setPixel(current.skull, current.eye, current.light, current.color);
+      }
+     lc.next();
+    }
+  }
+
+  if (PLAY_LIGHTLOCATION) {    
+    LightLocation ll = LightLocation();
+    for (int i=0; i < 20; i++) {
+      locationColor(ll);
+      delay(100);
+    }
+  }
+
+  if (PLAY_EARLY) {
+    //firsts();
+    lightWalk(50);
+    rotateEyes(100);
+    rotateEyesAlt(100);
+    rotateEyesPing(50);
+  }
+
+  if (PLAY_ORIGINALS) {
+    // Fill along the length of the strip in various colors...
+    colorWipe(strip1.Color(255,   0,   0), 50); // Red
+    colorWipe(strip1.Color(  0, 255,   0), 50); // Green
+    colorWipe(strip1.Color(  0,   0, 255), 50); // Blue
+
+    colorWipe(strip2.Color(255,   0,   0), 50); // Red
+    colorWipe(strip2.Color(  0, 255,   0), 50); // Green
+    colorWipe(strip2.Color(  0,   0, 255), 50); // Blue
+
+    // Do a theater marquee effect in various colors...
+    theaterChase(strip1.Color(127, 127, 127), 50); // White, half brightness
+    theaterChase(strip1.Color(127,   0,   0), 50); // Red, half brightness
+    theaterChase(strip1.Color(  0,   0, 127), 50); // Blue, half brightness
+
+    theaterChase(strip2.Color(127, 127, 127), 50); // White, half brightness
+    theaterChase(strip2.Color(127,   0,   0), 50); // Red, half brightness
+    theaterChase(strip2.Color(  0,   0, 127), 50); // Blue, half brightness
+
+    rainbow(10);             // Flowing rainbow cycle along the whole strip
+    theaterChaseRainbow(50); // Rainbow-enhanced theaterChase variant
+  }
+  
+}
 
 //void loop() {
 //
@@ -642,60 +664,3 @@ void theaterChaseRainbow(int wait) {
 //
 //
 //
-
-void loop() {
-
-  // Light control
-  useLightController(lc);
-
-  // MA
-//  firsts();
-  LightLocation ll = LightLocation();
-  for (int i=0; i < 20; i++) {
-    locationColor(ll);
-    delay(100);
-  }
-//  delay(2000);
-
-  // ORIGINALS
-
-  if (PLAY_ORIGINALS) {
-
-    lightWalk(50);
-    rotateEyes(100);
-    rotateEyesAlt(100);
-    rotateEyesPing(50);
-
-    // Fill along the length of the strip in various colors...
-    colorWipe(strip1.Color(255,   0,   0), 50); // Red
-    colorWipe(strip1.Color(  0, 255,   0), 50); // Green
-    colorWipe(strip1.Color(  0,   0, 255), 50); // Blue
-
-    colorWipe(strip2.Color(255,   0,   0), 50); // Red
-    colorWipe(strip2.Color(  0, 255,   0), 50); // Green
-    colorWipe(strip2.Color(  0,   0, 255), 50); // Blue
-
-    // Do a theater marquee effect in various colors...
-    theaterChase(strip1.Color(127, 127, 127), 50); // White, half brightness
-    theaterChase(strip1.Color(127,   0,   0), 50); // Red, half brightness
-    theaterChase(strip1.Color(  0,   0, 127), 50); // Blue, half brightness
-
-    theaterChase(strip2.Color(127, 127, 127), 50); // White, half brightness
-    theaterChase(strip2.Color(127,   0,   0), 50); // Red, half brightness
-    theaterChase(strip2.Color(  0,   0, 127), 50); // Blue, half brightness
-
-    rainbow(10);             // Flowing rainbow cycle along the whole strip
-    theaterChaseRainbow(50); // Rainbow-enhanced theaterChase variant
-  }
-}
-
-
-void useLightController(LightController lc) {
-  while(true) {
-    for (int i = 0; i < 48; i++) {
-      Node current = lc.getLight(i);
-      setPixel(current.skull, current.eye, current.light, current.color);
-    }
-   lc.next();
-  }
-}

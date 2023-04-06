@@ -142,7 +142,9 @@ float servoLastLeft = -1.0;
 float servoLastRight = -1.0;
 float servoLastTail = -1.0;
 
+// motor globals
 Servo esc;
+bool escDryRun = false;
 float escMin = 1200.0;
 float escMax = 1800.0;
 float escPos = -1.0;
@@ -207,8 +209,10 @@ void setup()
   delay(15);
 
   Serial.println("Setting up esc");
-  esc.attach(EscPin);
-  esc_calibrate();
+  if (escDryRun==false) {
+    esc.attach(EscPin);
+    esc_calibrate();
+  }
 
   // // receiver
   // if (!driver.init()) {
