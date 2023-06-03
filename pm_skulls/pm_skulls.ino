@@ -33,9 +33,8 @@ bool PLAY_LIGHTLOCATION = false;
 bool PLAY_EARLY = false;
 bool PLAY_ORIGINALS = false;
 
-
 // START SHARED
-#include <math.h> 
+#include <math.h>
 
 struct Loc {
   float x;
@@ -68,12 +67,12 @@ class LightController {
     Loc source = {-50, 0};
     int delta = 10;
     char* pattern = "fade"; // fade, line, blink, fire
-  
+
     // Blink
     int blinkVal = 200;
     int blinkDelta = -1;
     int eyeVal = 2;
-  
+
     // Fire
     int fireI = 0;
 
@@ -94,9 +93,9 @@ class LightController {
     }
 
     int getOverallCount() { return overallCount; }
-    
+
     Node getLight(int i) { return lights[i]; }
-    
+
     Loc getLightLoc(int skull, int eye, int light) {
       float x = skull * skull_mm + eye * eye_mm + cos(float(light) / led_eye_count * 2 * pi) * light_mm;
       float y = sin(float(light) / led_eye_count * 2 * pi) * light_mm;
@@ -110,7 +109,7 @@ class LightController {
     void next() {
 
       overallCount++;
-      
+
       // Fade pattern
       if (this->pattern=="fade") {
         int i = 0;
@@ -177,11 +176,11 @@ class LightController {
             }
           }
         }
-        
+
         blinkVal += blinkDelta;
         if (blinkVal<-10) { blinkDelta = 1; }
         if (blinkVal>200) {
-          blinkDelta = -1; 
+          blinkDelta = -1;
           eyeVal = eyeVal + 1;
           if (eyeVal > 3) {
             eyeVal = 0;
@@ -199,7 +198,7 @@ class LightController {
               Loc target = this->getLightLoc(skull, eye, light);
               int strandNr = skull * 4 + eye * 2;
               if (cos(float(light) / led_eye_count * 2 * pi) > 0) {
-                strandNr +=1;         
+                strandNr +=1;
               }
               switch(strandNr) {
                 case 0:
@@ -227,7 +226,7 @@ class LightController {
                   val = iToVal(fireI + 2952, 290, 740, 920) * 20;
                   break;
               }
-              
+
               Color color;
               if (target.y > val) {
                 float y = target.y * -1 + 20;
@@ -245,13 +244,13 @@ class LightController {
         }
         fireI = fireI + 5;
       }
-  
+
     }
 
     float iToVal(int i, int a=50, int b=70, int c=110) {
       return sin(i/a) * 1/1 + sin(i/b) * 1/2 + sin(i/c) * 1/3;
     }
-    
+
 };
 // END SHARED
 
@@ -272,7 +271,7 @@ class Lagger {
       this->size = size;
       this->q = cppQueue(sizeof(Node), size, IMPLEMENTATION);
     }
-    
+
     lagPixel(Node node) {
       this->q.push(&node);
       for (int i=0; i < q.getCount(); i++) {
@@ -384,7 +383,6 @@ void rotateEyesPing(int wait) {
     rotate(0, 0, color, wait, true, 0, 1, 6, lagger);
   }
 }
-
 
 void rotateEyes(int wait) {
   Lagger lagger = Lagger(1);
@@ -549,7 +547,7 @@ void loop() {
     }
   }
 
-  if (PLAY_LIGHTLOCATION) {    
+  if (PLAY_LIGHTLOCATION) {
     LightLocation ll = LightLocation();
     for (int i=0; i < 20; i++) {
       locationColor(ll);
@@ -587,80 +585,5 @@ void loop() {
     rainbow(10);             // Flowing rainbow cycle along the whole strip
     theaterChaseRainbow(50); // Rainbow-enhanced theaterChase variant
   }
-  
-}
 
-//void loop() {
-//
-//  colorWipe(strip1.Color(255,   0,   0), 50); // Red
-//  delay(1 * SECOND);
-//  colorWipe(strip1.Color(  0, 255,   0), 50); // Green
-//  delay(1 * SECOND);
-//  colorWipe(strip1.Color(  0,   0, 255), 50); // Blue
-//  delay(1 * SECOND);
-//
-//}
-//
-//void colorWipe(uint32_t color, int wait) {
-//  for(int i=0; i<strip1.numPixels(); i++) {
-//    strip1.setPixelColor(i, color); // Set pixel's color (in RAM)
-//    strip2.setPixelColor(i, color);
-//    strip1.show(); // Update strip to match
-//    strip2.show();
-//    delay(wait); // Pause for a moment
-//  }
-//}
-//
-//void full(Adafruit_NeoPixel strip, int eyeNr, int g, int r, int b) {
-//
-//}
-//
-//int reMap(int loc, int offset) {
-//  return (loc + offset)%LED_EYE_COUNT;
-//}
-//
-//void blink(int wait) {
-//
-//
-//  // Params
-//  float width = 3;
-//  float fadeWidth = 1.5;
-//  int fadeTime = 300; // ms
-//  uint32_t startColor = strip1.Color(0,  0,   0);
-//  uint32_t endColor = strip1.Color(255,  255,   255);
-//
-//  // Calculated values
-//  float totalWidth = width + fadeWidth;
-//  int nrCycles = fadeTime / wait;
-//  float cycleMove = totalWidth / nrCycles;
-//
-//  // Clear colors
-//  colorWipe(strip1.Color(0,   0,   0), wait);
-//
-//  // Loop through fade
-//  for(int i=0; i<=nrCycles; i++) {
-//    float startPos = 0 + i * cycleMove;
-//    float endPos = startPos + fadeWidth;
-//    for (int j; j<width; i++) {
-//      float prop = 0.1; // TODO set this
-////      uint32_t color = mixColor(startColor, endColor, prop) // Write mixColor function
-////      strip1.setPixelColor(j, color); //
-//    }
-//  }
-//
-////  // Blink
-////  for(int i=0; i<3; i++) {
-////    strip1.setPixelColor(i, color);         //  Set pixel's color (in RAM)
-////    strip1.show();                          //  Update strip to match
-////
-////    strip2.setPixelColor(i, color);         //  Set pixel's color (in RAM)
-////    strip2.show();                          //  Update strip to match
-////
-////    delay(wait);                           //  Pause for a moment
-////  }
-//}
-//
-//
-//
-//
-//
+}
