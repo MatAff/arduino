@@ -6,9 +6,10 @@
 #include "Line.h"
 #include "Plot.h"
 #include "Segment.h"
+#include "Controller.cpp"
 
 #include "FPS.cpp"
-#include "SnakeControl.cpp"
+// #include "SnakeControl.cpp"
 // #include "SnakeControlBasic.cpp"
 
 #define KEY_ESC 27
@@ -66,7 +67,7 @@ int main(int argc, char ** argv)
 
     bool runStatus = true;
     bool showScreen = true;
-    int pauseTime = 30; 
+    int pauseTime = 30;
 
     initSnake(snake, nrSegments);
     std::vector<float> servoDegs{ 5.0, 10.0, 15.0, 20.0, 0.0 }; // first or last is ignored
@@ -92,7 +93,7 @@ int main(int argc, char ** argv)
     // std::cout << dirQueue.front() << std::endl;
     // dirQueue.pop();
 
-    
+
 
 
     // main loop

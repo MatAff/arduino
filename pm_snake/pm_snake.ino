@@ -16,35 +16,12 @@
  * mode-wave = control them in a wave like manner (creates movement)
  */
 
-
-/* REFERENCE MATERIAL 
- * pins: https://images-na.ssl-images-amazon.com/images/I/81nOeGRzxPL._AC_SL1500_.jpg 
+/* REFERENCE MATERIAL
+ * pins: https://images-na.ssl-images-amazon.com/images/I/81nOeGRzxPL._AC_SL1500_.jpg
  */
- 
- /* TODO
-  * replace repetitive code with collections (e.g. arrays)
-  */
 
 #include <SPI.h> // Not actually used but needed to compile
 #include <Servo.h>
-
-#include <cppQueue.h>
-
-#define IMPLEMENTATION FIFO
-#define OVERWRITE true
-
-//// receiver
-//#include <RH_ASK.h>
-
-//// imu
-//#include <Adafruit_Sensor.h>
-//#include <Adafruit_BNO055.h>
-//#include <Wire.h>
-
-//// receiver
-//#define TxPin 10 
-//#define RxPin 10 
-//#define PowerPin 16
 
 #define ServoPin1 18
 #define ServoPin2 19
@@ -57,8 +34,8 @@ int ModeZero = 0;
 int ModeWave = 1;
 
 // mode
-//int mode = ModeZero; 
-int mode = ModeWave; 
+//int mode = ModeZero;
+int mode = ModeWave;
 
 // global servo positions
 float servoPosGlobal1 = 90.0;
@@ -69,7 +46,15 @@ float servoPosGlobal4 = 90.0;
 // delay
 float delayMs = 50.0;
 
+// START SHARED
 
+// UNCOMMENT FOR CPP #include <cmath>
+// UNCOMMENT FOR CPP #include <chrono>
+
+#include "cppQueue.h" // arduino alternative for deque
+
+#define IMPLEMENTATION FIFO
+#define OVERWRITE true
 
 // control class that can be shared between arduino and cpp
 class SnakeControl
@@ -97,12 +82,12 @@ private:
     float stepsBetweenServos = waveServoStep / waveTimeStep;
 
     // track pos
-    cppQueue dirQueue = cppQueue(sizeof(Rec), stepsBetweenServos * nrServos, IMPLEMENTATION, OVERWRITE); 
+    cppQueue dirQueue = cppQueue(sizeof(Rec), stepsBetweenServos * nrServos, IMPLEMENTATION, OVERWRITE);
     float servoPhasePosArr[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
     // servoPhasePosArr[0] = 0.0; // set head value
-  
+
     // time
-    unsigned long SECOND = 1000000; 
+    unsigned long SECOND = 1000000;
     unsigned long setTime = micros();
     int prestartDurationSecs = 5;
     int runDurationSecs = 20;
@@ -112,7 +97,7 @@ public:
 
     float servoPosArr[5];
 
-  
+
 //    void show_queue(cppQueue& q)
 //    {
 //        String s = "q: ";
@@ -122,28 +107,24 @@ public:
 //            q.peekIdx(&r, i);
 //            s += String(r.dir, 2) + "; ";
 //        }
-//        Serial.println(s);  
+//        Serial.println(s);
 //    };
 
-//    // cpp
-//   long micros()
-//   {
-//       return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-//   }
+// UNCOMMENT FOR CPP long micros() { return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count(); }
 
     float unit_to_rad(float unit)
     {
         return unit * 6.28318531;
     }
 
-    void control_wave() 
+    void control_wave()
     {
         // calculate phase
         r = { servoPhasePosArr[0] };
         dirQueue.push(&r); // add position record to queque
 
 //        show_queue(dirQueue);
-        
+
         servoPhasePosArr[0] = (servoPhasePosArr[0] + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
         // if (servoPhasePosArr[0] > 1.0) {
         //   servoPhasePosArr[0] = servoPhasePosArr[0] - 1.0;
@@ -161,8 +142,8 @@ public:
                 Rec r;
                 dirQueue.peekIdx(&r, pos);
                 servoPhasePosArr[i] = r.dir;
-                
-                if (i == 3) 
+
+                if (i == 3)
                 {
 //                    Serial.println("popping");
                     Rec r;
@@ -170,7 +151,7 @@ public:
                 }
             }
         }
-        
+
         // convert to servo position
         for (int i=0; i < nrServos; i++)
         {
@@ -182,7 +163,7 @@ public:
             // float deg = sin(rad) + sin(3*rad)/3 + sin(5*rad)/5 + sin(7*rad)/7 + sin(9*rad)/9;
             servoPosArr[i] = deg * waveSize + 90.0;
         }
-        
+
 //        String servoPhaseStr = "Servo phase positions in class: ";
 //        servoPhaseStr += String(servoPhasePosArr[0], 2) + "; ";
 //        servoPhaseStr += String(servoPhasePosArr[1], 2) + "; ";
@@ -200,6 +181,8 @@ public:
     }
 
 };
+
+// END SHARED
 
 class SnakeControlBasic
 {
@@ -231,7 +214,7 @@ private:
     float servoPos4 = 90.0;
 
     // time
-    unsigned long SECOND = 1000000; 
+    unsigned long SECOND = 1000000;
     unsigned long setTime = micros();
     int prestartDurationSecs = 5;
     int runDurationSecs = 20;
@@ -240,7 +223,7 @@ public:
 
     float servoPosArr[5];
 
-    // cpp
+    // CPP long micros() { return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count(); }
 //    long micros()
 //    {
 //        return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -251,7 +234,7 @@ public:
         return unit * 6.28318531;
     }
 
-    void control_wave() 
+    void control_wave()
     {
         // calculate phase
         servoPhasePos1 = (servoPhasePos1 + waveTimeStep); // take remainer to avoid incrementing indefinitely, and improve interpretability
@@ -289,7 +272,7 @@ Servo servo4;
 
 
 // time
-unsigned long SECOND = 1000000; 
+unsigned long SECOND = 1000000;
 unsigned long setTime = micros();
 int prestartDurationSecs = 5;
 int runDurationSecs = 20;
@@ -312,7 +295,7 @@ void setup()
   servo2.attach(ServoPin2);
   servo3.attach(ServoPin3);
   servo4.attach(ServoPin4);
-  
+
   // finalize
   Serial.println("setup complete");
 
@@ -354,11 +337,11 @@ void loop() {
 
   act_servos(true);
 
-  delay(delayMs); 
+  delay(delayMs);
 
 
   /* pause execution */
-  
+
   while (micros() > setTime + (runDurationSecs * SECOND)) {
     delay(delayMs);
   }
@@ -371,7 +354,7 @@ void loop() {
 
 /* CONTROL */
 
-void control_zero() 
+void control_zero()
 {
   servoPosGlobal1 = 90.0;
   servoPosGlobal2 = 90.0;
@@ -381,14 +364,14 @@ void control_zero()
 
 /* ACT */
 
-void act_servos(bool verbose) 
+void act_servos(bool verbose)
 {
   servo1.write(servoPosGlobal1 + 0.0);
   servo2.write(servoPosGlobal2 + 0.0);
   servo3.write(servoPosGlobal3 + 0.0);
   servo4.write(servoPosGlobal4 + 0.0);
 
-  if (verbose) 
+  if (verbose)
   {
     String servoStr = "Servo positions: ";
     servoStr += String(servoPosGlobal1, 2) + "; ";
