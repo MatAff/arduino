@@ -61,7 +61,7 @@ class Track():
         self.points = []
         point_count = n
         for i in range(point_count):
-            x = 300 + sin(1*i/point_count * 360) * 100  # 2
+            x = 300 + sin(2*i/point_count * 360) * 100  # 2
             y = 300 + cos(1*i/point_count * 360) * 100  # 4
             self.points.append([x, y])
         self.pos = 0

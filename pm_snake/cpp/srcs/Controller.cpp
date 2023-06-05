@@ -34,18 +34,39 @@ inline float pointsToDeg(Point start, Point end) {
 class Track {
 public:
   Track(int n, int pause) {
-    int pointCount = n;
+    pointCount = n;
     this->pause = pause;
-    for (int i; i < n; i++) {
-      points[i] = { 300 + degSin(1 * i / pointCount * 360) * 100,  // 2
-                    300 + degCos(1 * i / pointCount * 360) * 100 };  // 4
+    for (int i=0; i < n; i++) {
+      points[i] = { 300 + degSin(2.0 * i / pointCount * 360) * 100,  // 2
+                    300 + degCos(1.0 * i / pointCount * 360) * 100 };  // 1
     }
   }
-  void tick() { pos = pos + 1; }
-  float angle() { return pointsToDeg(points[pos], points[pos+1]); }
-  float diff() { return angle() - pointsToDeg(points[pos + pause], points[pos + 1 + pause]); }
-  Point points[100];
+  void tick() {
+    pos = pos + 1;
+    if (pos > pointCount) { pos -= pointCount; }
+  }
+  float angle() { 
+    int startIndex = pos;
+    if (startIndex >= pointCount) { startIndex -= pointCount; }
+    int endIndex = pos + 1;
+    if (endIndex >= pointCount) { endIndex -= pointCount; }
+    return pointsToDeg(points[startIndex], points[endIndex]);
+  }
+  float diff() { 
+    float startAngle = angle();
+    int startIndex = pos + pause;
+    if (startIndex >= pointCount) { startIndex -= pointCount; }
+    int endIndex = pos + 1 + pause;
+    if (endIndex >= pointCount) { endIndex -= pointCount; }
+    float endAngle = pointsToDeg(points[startIndex], points[endIndex]);
+    float angle = startAngle - endAngle;
+    if (angle < 0) { angle += 360; }
+    //std::cout << "pos: " << pos << " startIndex " << startIndex << " endIndex " << endIndex << " startAngle " << startAngle << " endAngle " << endAngle << " angle " << angle << std::endl;
+    return angle;
+  }
+  Point points[72];
   int pos = 0;
+  int pointCount;
   int pause;
 };
 
@@ -68,42 +89,49 @@ public:
   float wheelAngles[5] = {-1.0, -1.0, -1.0, -1.0, -1.0};
   float wheelHeight[5];
   cppQueue q = cppQueue(sizeof(Rec), 99, IMPLEMENTATION, OVERWRITE);
-  Track track = Track(36, 5);
+  Track track = Track(72, 1);
   SnakeControl() {
-    std::cout << "Constructor" << " ";
+    //std::cout << "Constructor" << " ";
+    for (int i = 0; i < 300; i++) {
+      track.tick();
+      float diff = track.diff();
+      //std::cout << "diff: " << diff << std::endl;
+    }
+    //std::exit(0);
   }
   void control_wave() {
-    std::cout << "control wave" << std::endl;
+    //std::cout << "control wave" << std::endl;
     phase = phase - stepDeg;
-    std::cout << "phase: " << phase << std::endl;
     if (phase < 0) { phase = phase + 360; }
+    //std::cout << "phase: " << phase << std::endl;
     float start = degSin(phase) * maxWheelAngle;
-    std::cout << "start: " << start << std::endl;
+    //std::cout << "start: " << start << std::endl;
     float enddd = degSin(phase + wheelStep) * maxWheelAngle;
-    std::cout << "enddd: " << enddd << std::endl;
+    //std::cout << "enddd: " << enddd << std::endl;
     float angle = enddd - start;
-    std::cout << "angle: " << angle << std::endl;
+    //std::cout << "angle: " << angle << std::endl;
     track.tick();
     float diff = track.diff();
-    std::cout << "diff: " << diff << std::endl;
+    //std::cout << "diff: " << diff << std::endl;
     angle = angle + diff;
+    angle = angle + 90.0;
     std::cout << "angle the important one: " << angle << std::endl;
     start = start + track.angle();
     
-    wheelAngles[0] = start;
+    // wheelAngles[0] = start;
     Rec r = {angle};
     q.push(&angle);
     for (int i = 0; i < segments - 1; i++) {
-      std::cout << "i: " << i << std::endl;
-      std::cout << "queue pos: " << (i * queuePause +1) << std::endl;
+      //std::cout << "i: " << i << std::endl;
+      //std::cout << "queue pos: " << (i * queuePause +1) << std::endl;
       if (q.getCount() > (i * queuePause +1)) {
-        std::cout << "from queue" << std::endl;
+        //std::cout << "from queue" << std::endl;
         Rec r;
         q.peekIdx(&r, i * queuePause + 1);
         servoPosArr[i] = r.dir;
         if (i == (segments - 2)) { q.pop(&r); }
       } else {
-        std::cout << "from default" << std::endl;
+        //std::cout << "from default" << std::endl;
         servoPosArr[i] = 90.0;
       }
     }
