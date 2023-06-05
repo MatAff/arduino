@@ -21,7 +21,6 @@
 #define KEY_RIGHT 83
 #define KEY_PAGE_UP 85
 #define KEY_PAGE_DOWN 86
-// #define KEY_
 
 cv::Size size(640, 480);
 cv::Mat frame(size, CV_8UC3); // TODO: this should be owned by plot
@@ -64,7 +63,7 @@ void drawSnake(std::vector<Segment>& snake, int nrSegments)
 
 int main(int argc, char ** argv)
 {
-
+    std::cout << "main - a" << " ";
     bool runStatus = true;
     bool showScreen = true;
     int pauseTime = 30;
@@ -72,6 +71,8 @@ int main(int argc, char ** argv)
     initSnake(snake, nrSegments);
     std::vector<float> servoDegs{ 5.0, 10.0, 15.0, 20.0, 0.0 }; // first or last is ignored
     setSnake(snake, nrSegments, servoDegs);
+
+    std::cout << "main - b" << " ";
 
     // snake control
     SnakeControl sc = SnakeControl();
@@ -92,8 +93,6 @@ int main(int argc, char ** argv)
     // dirQueue.pop();
     // std::cout << dirQueue.front() << std::endl;
     // dirQueue.pop();
-
-
 
 
     // main loop

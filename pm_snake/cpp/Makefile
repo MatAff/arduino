@@ -12,15 +12,15 @@ TARGETS = Sim TestCPPQueue
 DEFAULT_TGT = Sim
 
 CC=g++
-CFLAGS=-std=c++17 
+CFLAGS=-std=c++17
 CVINC=-I/usr/local/include/opencv4/
 CVLIBS= -lopencv_highgui -lopencv_videoio -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_objdetect -lopencv_calib3d
-INC=-I$(HDR_DIR) $(CVINC) 
+INC=-I$(HDR_DIR) $(CVINC)
 
 all: $(DEFAULT_TGT)
 
 Sim: $(OBJ_FILES)
-	$(CC) $(CFLAGS) $(INC) $(SRC_DIR)/$@.cpp -o $@ $^ $(CVLIBS)
+	$(CC) $(CFLAGS) $(INC) $(SRC_DIR)/$@.cpp -o $@ $^ $(CVLIBS) -g
 
 TestCPPQueue: $(OBJ_FILES)
 	$(CC) $(CFLAGS) $(INC) $(SRC_DIR)/$@.cpp -o $@ $^ $(CVLIBS)
