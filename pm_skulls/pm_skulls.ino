@@ -1,5 +1,6 @@
 // Skull patterns not reactive.
 // Snowflake pattern
+// Silver goes left, green goes right
 
 #include <Adafruit_NeoPixel.h>
 #include <cppQueue.h>
@@ -27,11 +28,10 @@ Adafruit_NeoPixel strip2(LED_COUNT, LED_PIN2, NEO_GRB + NEO_KHZ800);
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
 
-// Settings
-bool PLAY_LIGHT_CONTROL = false;
-bool PLAY_LIGHTLOCATION = false;
-bool PLAY_EARLY = false;
-bool PLAY_ORIGINALS = false;
+bool PLAY_LIGHT_CONTROL = true;
+bool PLAY_LIGHTLOCATION = true;
+bool PLAY_EARLY = true;
+bool PLAY_ORIGINALS = true;
 
 // START SHARED
 #include <math.h>
@@ -77,7 +77,8 @@ class LightController {
     int fireI = 0;
 
   public:
-    LightController () {
+    LightController() { //char* pattern) {
+//      this->pattern = pattern;
       // Set initial colors.
       int i = 0;
       for (int skull=0; skull<2; skull++) {
@@ -96,15 +97,12 @@ class LightController {
 
     Node getLight(int i) { return lights[i]; }
 
-    Loc getLightLoc(int skull, int eye, int light) {
-      float x = skull * skull_mm + eye * eye_mm + cos(float(light) / led_eye_count * 2 * pi) * light_mm;
-      float y = sin(float(light) / led_eye_count * 2 * pi) * light_mm;
-      return {x, y};
+    Loc getLightLoc(int skull, int eye, int light) { // TODO(mat): Cache this
+      return {skull * skull_mm + eye * eye_mm + cos(float(light) / led_eye_count * 2 * pi) * light_mm,
+              sin(float(light) / led_eye_count * 2 * pi) * light_mm };
     }
 
-    float getDistLoc(Loc source, Loc target) {
-      return pow(pow(source.x - target.x, 2) + pow(source.y - target.y, 2), 0.5);
-    }
+    float getDistLoc(Loc source, Loc target) { return pow(pow(source.x - target.x, 2) + pow(source.y - target.y, 2), 0.5); }
 
     void next() {
 
@@ -254,13 +252,13 @@ class LightController {
 };
 // END SHARED
 
-// Need to go after shared
+// Needs to go after shared
 extern void setPixel(int skull, int eye, int light, Color color);
 extern Loc getLightLoc(int skull, int eye, int light);
 extern float getDistLoc(Loc source, Loc target);
 //extern void locationColor(LightLocation& ll);
 
-LightController lc;
+LightController lc(); // 'fire');
 
 class Lagger {
   private:
@@ -301,7 +299,6 @@ Color LightLocation::getColor(int skull, int eye, int light) {
   float x = source.x + 1;
   if (x>400) { x = -100; }
   source = {x, 0};
-  Serial.println(dist);
   return {int(dist / 600 * 255), 255 - int(dist / 600 * 255), 0};
 }
 
@@ -394,7 +391,9 @@ void rotateEyes(int wait) {
   for (Color color : colorArray) { // for each element in the array
     for (int skull=0; skull<2; skull++) {
       for (int eye=0; eye<2; eye++) {
+        Serial.println("rotateEyes - A");  
         rotate(skull, eye, color, wait, true, 0, 1, 12, lagger);
+        Serial.println("rotateEyes - B");  
       }
     }
   }
@@ -403,18 +402,24 @@ void rotateEyes(int wait) {
 
 void rotateEyesAlt(int wait) {
   Lagger lagger = Lagger(1);
+  Serial.println("rotateEyesAlt - A");  
   const Color colorArray [] = {
     {255, 0, 0},
     {0, 255, 0},
     {0, 0, 255}
    };
   for (Color color : colorArray) { // for each element in the array
+    Serial.println("rotateEyesAlt - B");  
     for (int skull=0; skull<2; skull++) {
+      Serial.println("rotateEyesAlt - C");  
       for (int eye=0; eye<2; eye++) {
+        Serial.println("rotateEyesAlt - D");  
         rotate(skull, eye, color, wait, true, 0, 1 - 2 * eye, 12, lagger);
+        Serial.println("rotateEyesAlt - F");  
       }
     }
   }
+  Serial.println("rotateEyesAlt - E");  
 }
 
 void wipe() {
@@ -527,43 +532,70 @@ void theaterChaseRainbow(int wait) {
 }
 
 void setup() {
+  Serial.println("Setup start");  
   strip1.begin();
   strip2.begin();
   strip1.show();  // Turn OFF all pixels ASAP
   strip2.show();
   strip1.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
   strip2.setBrightness(50);
+  Serial.println("Setup end");  
 }
 
 void loop() {
 
+  Serial.println("loop start");  
+  delay(100);
   if (PLAY_LIGHT_CONTROL) {
-    while(lc.getOverallCount() < 10000) {
+    Serial.println("Light control - Start");  
+//    lc = LightController(); // 'fade');
+//    while(lc.getOverallCount() < 1000) {
+//      for (int i = 0; i < 48; i++) {
+//        Node current = lc.getLight(i);
+//        setPixel(current.skull, current.eye, current.light, current.color);
+//      }
+//     lc.next();
+//    }
+    LightController lc_fire = LightController(); // 'fire');
+    Serial.println("Light control - fire - Start");  
+    while(lc_fire.getOverallCount() < 100) {
       for (int i = 0; i < 48; i++) {
-        Node current = lc.getLight(i);
+        Node current = lc_fire.getLight(i);
         setPixel(current.skull, current.eye, current.light, current.color);
       }
-     lc.next();
+     lc_fire.next();
     }
+    Serial.println("Light control - fire - End");  
+    Serial.println("Light control - End");  
   }
 
   if (PLAY_LIGHTLOCATION) {
+    Serial.println("Light location - Start");  
+    delay(100);
     LightLocation ll = LightLocation();
     for (int i=0; i < 20; i++) {
       locationColor(ll);
       delay(100);
     }
+    Serial.println("Light location - End");  
   }
 
   if (PLAY_EARLY) {
+    Serial.println("Early - Start");  
     //firsts();
-    lightWalk(50);
-    rotateEyes(100);
-    rotateEyesAlt(100);
-    rotateEyesPing(50);
+//    lightWalk(50);
+    Serial.println("Early - A");  
+//    rotateEyes(100);
+    Serial.println("Early - B - potential issue");  
+//    rotateEyesAlt(100);
+    Serial.println("Early - C");  
+//    rotateEyesPing(50);
+    Serial.println("Early - D");  
+    Serial.println("Early - End");  
   }
 
   if (PLAY_ORIGINALS) {
+    Serial.println("Original - Start");  
     // Fill along the length of the strip in various colors...
     colorWipe(strip1.Color(255,   0,   0), 50); // Red
     colorWipe(strip1.Color(  0, 255,   0), 50); // Green
@@ -584,6 +616,10 @@ void loop() {
 
     rainbow(10);             // Flowing rainbow cycle along the whole strip
     theaterChaseRainbow(50); // Rainbow-enhanced theaterChase variant
+
+    Serial.println("Original - End");  
   }
+
+  Serial.println("Loop - End");  
 
 }
