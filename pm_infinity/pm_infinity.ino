@@ -28,6 +28,7 @@ int backUpCount = 0;
 //extern uint8_t getRedValueFromColor(uint32_t c);
 //extern uint8_t getBlueValueFromColor(uint32_t c);
 
+int brightness = 25;
 
 void setup() {
 #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000)
@@ -154,7 +155,8 @@ uint32_t getColor(int period) {
 void fadeOut()
 {
   for(int i=0; i<5; i++) {
-    strip.setBrightness(110 - i*20);
+    // strip.setBrightness(110 - i*20);
+    strip.setBrightness(brightness - i*brightness/5);
     strip.show(); // Update strip
     delay(fadeDelay);
     periodFactor +=fadeDelay;
@@ -162,7 +164,8 @@ void fadeOut()
 }
 
 void fadeIn() {
-  strip.setBrightness(100);
+  // strip.setBrightness(100);
+  strip.setBrightness(brightness);
   strip.show();
 
   for(int i=0; i<5; i++) {
@@ -271,9 +274,9 @@ uint32_t Wheel(byte WheelPos) {
 
 void backUpLoop() {
   // Fill along the length of the strip in various colors...
-  colorWipe(strip.Color(255,   0,   0), 50); // Red
-  colorWipe(strip.Color(  0, 255,   0), 50); // Green
-  colorWipe(strip.Color(  0,   0, 255), 50); // Blue
+  colorWipe(strip.Color(127,   0,   0), 50); // Red
+  colorWipe(strip.Color(  0, 127,   0), 50); // Green
+  colorWipe(strip.Color(  0,   0, 127), 50); // Blue
 
   // Do a theater marquee effect in various colors...
   theaterChase(strip.Color(127, 127, 127), 50); // White, half brightness
@@ -311,6 +314,7 @@ void theaterChase(uint32_t color, int wait) {
       for(int c=b; c<strip.numPixels(); c += 3) {
         strip.setPixelColor(c, color); // Set pixel 'c' to value 'color'
       }
+      strip.setBrightness(brightness);
       strip.show(); // Update strip with new contents
       delay(wait);  // Pause for a moment
     }
