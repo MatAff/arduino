@@ -156,7 +156,7 @@ class Controller {
       if (overallCount < 1200) {
         return blink(elements, size);
       }
-      if (overallCount < 1200) {
+      if (overallCount < 1400) {
         return fade(elements, size);
       }
       overallCount = 0;
