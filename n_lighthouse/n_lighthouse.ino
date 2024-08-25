@@ -2,8 +2,8 @@
 
 #define LED_PIN 6
 #define N_LINES 6
-#define N_LED 10
-#define N 60
+#define N_LED 9
+#define N 100
 #define BUTTON_PIN 3
 //
 int n_lines = N_LINES;
@@ -23,10 +23,10 @@ unsigned long debounceDelay = 500;
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(N, LED_PIN, NEO_GRBW + NEO_KHZ800);
 
 // da-di-di-dit dit dit di-da-dit
-int morse[] = {2, -1, 1, -1, 1, -1, 1, -2,
-               1, -2,
-               1, -2,
-               1, -1, 2, -1, 1, -4};
+int morse[] = {40, -5, 15, -5, 15, -5, 15, -40,
+               15, -40,
+               15, -40,
+               15, -5, 40, -5, 15, -80};
 int morse_size = sizeof(morse) / sizeof(morse[0]); 
 
 int t = 0;
@@ -71,7 +71,7 @@ void loop() {
   // Respond to button
   if (buttonState == HIGH) {
     Serial.println("Button pressed");
-    pressed_value = min(pressed_value * 2, 1500);
+    pressed_value = min(pressed_value * 4, 1500);
   }
    
   // Set active line color based on active morse
@@ -89,7 +89,7 @@ void loop() {
       lineColor[active_line][1] = 0;
       lineColor[active_line][2] = 0;
     }
-    lineDuration[active_line] = abs(active_morse) * 20;
+    lineDuration[active_line] = abs(active_morse) * 1;
   }
   
   // Set strips
@@ -199,21 +199,35 @@ void ledsOff() {
 }
 
 void setLightIndex() {
-  // Example given 6 lines and 10 per line
-  // pos 0 > i = 0; j = 0 > index 9
-  // pos 9 > i = 0; j = 9 > index 0
-  // pos 10 > i = 1; j = 0; > index 10
   for (int line=0; line<n_lines; line++) {
     for (int led=0; led<n_led; led++) {
       int pos = line * n_led + led;
-      if (line%2 == 0) {
-        lightIndex[pos] = line * n_led + n_led - led - 1;
-      } else {
-        lightIndex[pos] = line * n_led + led;
-      }
+      if (line==0) { lightIndex[pos] = 8 - led; }
+      if (line==1) { lightIndex[pos] = 15 + led; }
+      if (line==2) { lightIndex[pos] = 30 + 8 - led; }
+      if (line==3) { lightIndex[pos] = 30 + 15 + led; }
+      if (line==4) { lightIndex[pos] = 60 + 8 - led; }
+      if (line==5) { lightIndex[pos] = 60 + 15 + led; }   
     }
   }
 }
+
+//void setLightIndex() {
+//  // Example given 6 lines and 10 per line
+//  // pos 0 > i = 0; j = 0 > index 9
+//  // pos 9 > i = 0; j = 9 > index 0
+//  // pos 10 > i = 1; j = 0; > index 10
+//  for (int line=0; line<n_lines; line++) {
+//    for (int led=0; led<n_led; led++) {
+//      int pos = line * n_led + led;
+//      if (line%2 == 0) {
+//        lightIndex[pos] = line * n_led + n_led - led - 1;
+//      } else {
+//        lightIndex[pos] = line * n_led + led;
+//      }
+//    }
+//  }
+//}
 
 uint32_t getWheelColor(int period) {
   if(period == -1)
