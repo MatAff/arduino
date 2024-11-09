@@ -8,7 +8,7 @@
 #define LIGHTS_PER_LIGHT 7
 #define LIGHTS 8
 
-int brightness = 10;  // 0 through 100
+int brightness = 4;  // 0 through 100
 int t = 0;  // Wheel color
 int buttonState = 0;
 unsigned long lastDebounceTime = 0;
@@ -50,12 +50,12 @@ void loop() {
     }
   }
 
-  // Respond to button
-  if (buttonState == HIGH) {
-    Serial.println("Button pressed");
-    int numberModes = 3;
-    mode = mode + 1 % numberModes;
-  }
+  // // Respond to button
+  // if (buttonState == HIGH) {
+  //   Serial.println("Button pressed");
+  //   int numberModes = 3;
+  //   mode = mode + 1 % numberModes;
+  // }
 
   switch (mode) {
     case 0:
@@ -65,19 +65,19 @@ void loop() {
       if ((g < lower) || (g > upper)) { dg = dg * -1; }
       break;
     case 1:
-      brightness = brightness - 5;
+      brightness = brightness - 1;
       mode = 0;
       Serial.println(brightness);
     default : all(0, 255, 0); break;
   }
 
-  if (brightness < 5) { brightness = 100; }
+  // if (brightness < 5) { brightness = 100; }
 
   strip.show();  // Display
   strip_2.show();  // Display
   t = (t + 5) % 400;  // Update wheel color
   buttonState = 0;  // Reset button
-  delay(50);  // 20 fps
+  delay(500);  // 20 fps
 }
 
 void all(int r, int g, int b) {
